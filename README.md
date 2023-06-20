@@ -1,6 +1,6 @@
 # signia
 
-decentralized identity management
+A versatile key registry package that empowers users to seamlessly link their MetaNet identity across various applications.
 
 <!-- ## Signia Protocol
 The PushDrop token protocol for Signia key registry transactions will be as follows:
