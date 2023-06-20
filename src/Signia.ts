@@ -3,7 +3,7 @@
 import SDK from '@babbage/sdk'
 import pushdrop from 'pushdrop'
 import { Authrite } from 'authrite-js'
-import { ConfederacyConfig } from './models/OverlayConfig'
+import { ConfederacyConfig } from './models/ConfederacyConfig'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
@@ -24,6 +24,10 @@ const defaultConfig = new ConfederacyConfig(
  * @public
  */
 export class Signia {
+  /**
+   * Constructs a new Signia instance
+   * @param {ConfederacyConfig} config 
+   */
   constructor (
     public config: ConfederacyConfig = defaultConfig
   ) {}
@@ -31,7 +35,7 @@ export class Signia {
   /**
    * Publicly reveal identity attributes to the Signia overlay
    * @public
-   * @param fieldsToReveal 
+   * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
   async publiclyRevealIdentityAttributes(fieldsToReveal:Array<string>): Promise<object>{

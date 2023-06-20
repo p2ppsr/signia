@@ -6,8 +6,8 @@ export class ConfederacyConfig {
         public keyID?: string,
         public tokenAmount?: number,
         public topics?: string[],
-        public authriteConfig?: any,
-        public counterparty?: any,
+        public authriteConfig?: object,
+        public counterparty?: string,
         public receiveFromCounterparty?: boolean,
         public sendToCounterparty?: boolean,
         public viewpoint?: string
