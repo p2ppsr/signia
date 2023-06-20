@@ -6,32 +6,37 @@ import { Authrite } from 'authrite-js'
 import { ConfederacyConfig } from './models/OverlayConfig'
 
 // TODO: Rethink where this should be defined
-const defaultConfig = new ConfederacyConfig( 
-      'https://confederacy.babbage.systems',
-      [0, 'signia'],
-      '1',
-      1000,
-      ['kvstore'],
-      undefined,
-      undefined,
-      false,
-      false,
-      'localToSelf'
-  )
+const defaultConfig = new ConfederacyConfig(
+  'https://confederacy.babbage.systems',
+  [0, 'signia'],
+  '1',
+  1000,
+  ['signia'],
+  undefined,
+  undefined,
+  false,
+  false,
+  'localToSelf'
+)
 
 /**
- * A system for tracing vehicle history
+ * A system for decentralized identity management
  * @public
  */
 export class Signia {
   constructor (
-    public tokenValue: number = 1, 
     public config: ConfederacyConfig = defaultConfig
   ) {}
   
-  async publiclyRevealIdentityAttributes(fieldsToReveal:Array<string>) {
+  /**
+   * Publicly reveal identity attributes to the Signia overlay
+   * @public
+   * @param fieldsToReveal 
+   * @returns {object} - submission confirmation from the overlay
+   */
+  async publiclyRevealIdentityAttributes(fieldsToReveal:Array<string>): Promise<object>{
 
-    // try catch needed here?
+    // TODO: Consider error handling
     const certificates = await SDK.getCertificates()
 
     // Call proveCertificate for the anyone verifier
@@ -51,15 +56,13 @@ export class Signia {
       keyID: this.config.keyID
     })
 
-    // Build the output with pushdrop.create() and the transaction with createAction()
     // Do we care if there is an existing Signia token?
     const tx = await SDK.createAction({
       description: 'Create new Signia Token',
       outputs: [{
-        satoshis: this.tokenValue,
+        satoshis: this.config.tokenAmount,
         script: bitcoinOutputScript
-      }
-      ]
+      }]
     })
 
     // Register the transaction on the overlay using Authrite
@@ -74,28 +77,52 @@ export class Signia {
         topics: this.config.topics
       })
     })
+
+    // Return the confirmation from the overlay node
     return await result.json()
-
-    /**
-     * Return the confirmation from the overlay node
-     */
   }
 
-  // Query the lookup service for the given attribute (and optional certifier) and parseResults
-  async discoverByAttribute() {
-
+  /**
+   * Query the lookup service for the given attribute (and optional certifier) and parseResults
+   * @public 
+   * @param attribute 
+   * @param certifier 
+   * @returns {object}
+   */
+  async discoverByAttribute(attribute: string, certifier?: string): Promise<object> {
+    // TODO
+    return {}
   }
-  // which will Query the lookup service for the given identity key (and optional certifier) parseResults
-  async discoverByIdentityKey() {
 
+  /**
+   * Query the lookup service for the given identity key (and optional certifier) parseResults
+   * @public
+   * @param identityKey 
+   * @param certifier 
+   * @returns {object}
+   */
+  async discoverByIdentityKey(identityKey: string, certifier?: string): Promise<object> {
+    // TODO
+    return {}
   }
 
-  // which will Query the lookup service for the given certifier, returning all results for the certifier parseResults
-  async discoverByCertifier() {
-
+  /**
+   * Query the lookup service for the given certifier, returning all results for the certifier parseResults
+   * @public
+   * @param certifier 
+   * @returns {object}
+   */
+  async discoverByCertifier(certifier: string): Promise<object> {
+    // TODO
+    return {}
   }
-  // Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
-  private async parseResults() {
-    
+
+  /**
+   * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
+   * @returns {object}
+   */
+  private async parseResults(): Promise<object> {
+    // TODO
+    return {}
   }
 }
