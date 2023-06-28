@@ -24,13 +24,16 @@ const defaultConfig = new ConfederacyConfig(
  * @public
  */
 export class Signia {
+  private authrite: Authrite
   /**
    * Constructs a new Signia instance
    * @param {ConfederacyConfig} config 
    */
   constructor (
-    public config: ConfederacyConfig = defaultConfig
-  ) {}
+    public config: ConfederacyConfig = defaultConfig,
+  ) {
+    this.authrite = new Authrite(this.config.authriteConfig)
+  }
   
   /**
    * Publicly reveal identity attributes to the Signia overlay
@@ -70,20 +73,10 @@ export class Signia {
     })
 
     // Register the transaction on the overlay using Authrite
-    const client = new Authrite(this.config.authriteConfig)
-    const result = await client.request(`${this.config.confederacyHost}/submit`, {
-      method: 'post',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        ...tx,
-        topics: this.config.topics
-      })
-    })
-
-    // Return the confirmation from the overlay node
-    return await result.json()
+    return await this.makeAuthenticatedRequest(
+      'submit',
+      { ...tx, topics: this.config.topics }
+    )
   }
 
   /**
@@ -94,8 +87,12 @@ export class Signia {
    * @returns {object}
    */
   async discoverByAttribute(attribute: string, certifier?: string): Promise<object> {
-    // TODO
-    return {}
+    
+    // Request data from the Signia lookup service
+    return await this.makeAuthenticatedRequest(
+      'lookup',
+      { attribute, certifier }
+    )
   }
 
   /**
@@ -106,8 +103,11 @@ export class Signia {
    * @returns {object}
    */
   async discoverByIdentityKey(identityKey: string, certifier?: string): Promise<object> {
-    // TODO
-    return {}
+    // Lookup identity data based on identity key
+    return await this.makeAuthenticatedRequest(
+      'lookup',
+      { identityKey, certifier }
+    )
   }
 
   /**
@@ -117,16 +117,36 @@ export class Signia {
    * @returns {object}
    */
   async discoverByCertifier(certifier: string): Promise<object> {
-    // TODO
-    return {}
+    return await this.makeAuthenticatedRequest(
+      'lookup',
+      { certifier }
+    )
   }
 
   /**
    * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
    * @returns {object}
    */
-  private async parseResults(): Promise<object> {
-    // TODO
-    return {}
+  private async parseResults(data: object): Promise<object> {
+    // TODO: Implement necessary parsing -----------------------------
+    throw new Error('Parsing not implemented!')
+  }
+  /**
+   * Helper function for making Authrite HTTP requests
+   * @param {string} route - name of lookup service action
+   * @param {object} body - of request
+   * @returns {object} - result of HTTP request
+   */
+  private async makeAuthenticatedRequest(route: string, body: object): Promise<object> {
+    // Make a post request over Authrite
+    const result = await this.authrite.request(`${this.config.confederacyHost}/${route}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body
+    })
+    const jsonResult = await result.json()
+    return await this.parseResults(jsonResult)
   }
 }
