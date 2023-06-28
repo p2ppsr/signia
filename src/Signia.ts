@@ -62,6 +62,49 @@ export class Signia {
       verifierPublicIdentityKey: 'anyone'
     })
 
+    // TODO: Check if an existing Signia token is found
+    const [previousToken] = await this.makeAuthenticatedRequest(
+      'lookup',
+      { certifier }
+    ) as object[] // TODO: test result
+
+    // No inputs, unless redeeming a previous UTXO
+    let actionInputs = {}
+
+    // Check if an existing token was found
+    // TODO: Import UTXO def for type checking
+    if (previousToken) {
+      const unlockingScript = await pushdrop.redeem({
+        prevTxId: previousToken.txid,
+        outputIndex: previousToken.vout,
+        lockingScript: previousToken.outputScript,
+        outputAmount: this.config.tokenAmount,
+        protocolID: this.config.protocolID,
+        keyID: this.config.keyID,
+        counterparty: 'self'
+      })
+
+      // Define the input UTXOs to redeem in this transaction
+      actionInputs = {
+        [previousToken.txid]: {
+          ...previousToken,
+          inputs: typeof previousToken.inputs === 'string'
+            ? JSON.parse(previousToken.inputs)
+            : previousToken.inputs,
+          mapiResponses: typeof previousToken.mapiResponses === 'string'
+            ? JSON.parse(previousToken.mapiResponses)
+            : previousToken.mapiResponses,
+          proof: typeof previousToken.proof === 'string'
+            ? JSON.parse(previousToken.proof)
+            : previousToken.proof,
+          outputsToRedeem: [{
+            index: previousToken.vout,
+            unlockingScript
+          }]
+        }
+      }
+    }
+
     // Build the output with pushdrop.create() and the transaction with createAction()
     const bitcoinOutputScript = await pushdrop.create({
       fields: [
@@ -72,9 +115,10 @@ export class Signia {
       keyID: this.config.keyID
     })
 
-    // Do we care if there is an existing Signia token?
+    // Redeem any previous UTXOs, and create a new Signia token
     const tx = await SDK.createAction({
       description: 'Create new Signia Token',
+      inputs: actionInputs,
       outputs: [{
         satoshis: this.config.tokenAmount,
         script: bitcoinOutputScript
