@@ -1,5 +1,5 @@
 {
-  "name": "babbage-signia",
+  "name": "@cwi/signia",
   "version": "0.1.1",
   "description": "Decentralized Identity Management",
   "main": "./out/src/index.js",
@@ -17,7 +17,7 @@
     "doc": "documentation readme src/Signia.ts -f md -s API -a public"
   },
   "author": "Peer-to-peer Privacy Systems Research LLC",
-  "license": "Open BSV License",
+  "license": "PROPRIETARY",
   "devDependencies": {
     "@types/jest": "^29.4.0",
     "@types/node": "^18.13.0",
@@ -35,6 +35,7 @@
   "dependencies": {
     "@babbage/sdk": "^0.4.25",
     "authrite-js": "^0.2.15",
+    "cwi-base": "^0.2.0",
     "documentation": "^14.0.2",
     "dotenv": "^8.2.0",
     "pushdrop": "^0.1.20"

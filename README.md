@@ -50,7 +50,9 @@ Publicly reveal identity attributes to the Signia overlay
 
 ##### Parameters
 
-*   `fieldsToReveal` **[Array](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array)<[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)>**&#x20;
+*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**;
+*   `type` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**;
+*   `fieldsToReveal` **[Array](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array)<[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)>**;
 
 Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)** submission confirmation from the overlay
 
@@ -60,10 +62,10 @@ Query the lookup service for the given attribute (and optional certifier) and pa
 
 ##### Parameters
 
-*   `attribute` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**&#x20;
-*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)?**&#x20;
+*   `attribute` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**;
+*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)?**;
 
-Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**&#x20;
+Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**;
 
 #### discoverByIdentityKey
 
@@ -71,10 +73,10 @@ Query the lookup service for the given identity key (and optional certifier) par
 
 ##### Parameters
 
-*   `identityKey` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**&#x20;
-*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)?**&#x20;
+*   `identityKey` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**;
+*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)?**;
 
-Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**&#x20;
+Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**;
 
 #### discoverByCertifier
 
@@ -82,10 +84,12 @@ Query the lookup service for the given certifier, returning all results for the 
 
 ##### Parameters
 
-*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**&#x20;
+*   `certifier` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**;
 
-Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**&#x20;
+Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)**;
 
-## License
+## License & Confidentiality
 
-The license for the code in this repository is the Open BSV License
+This is proprietary software developed and owned by Peer-to-peer Privacy Systems Research, LLC.
+Except as provided for in your CWI Partner Agreement with us, you may not use this software and
+must keep it confidential.

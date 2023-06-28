@@ -3,7 +3,8 @@
 import SDK from '@babbage/sdk'
 import pushdrop from 'pushdrop'
 import { Authrite } from 'authrite-js'
-import { ConfederacyConfig } from './models/ConfederacyConfig'
+import { ConfederacyConfig } from './utils/ConfederacyConfig'
+import { ERR_SIGNIA_CERT_NOT_FOUND } from './ERR_SIGNIA'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
@@ -41,14 +42,22 @@ export class Signia {
    * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:Array<string>): Promise<object>{
+  async publiclyRevealIdentityAttributes(certifier: string, type: string, fieldsToReveal:string[]): Promise<object> {
 
-    // TODO: Consider error handling
-    const certificates = await SDK.getCertificates()
+    // Search for a matching certificate
+    const [certificate] = await SDK.getCertificates({
+      certifiers: [certifier],
+      types: {
+        [type]: fieldsToReveal
+      }
+    })
 
-    // Call proveCertificate for the anyone verifier
+    // Make sure a certificate was found
+    if (!certificate) throw new ERR_SIGNIA_CERT_NOT_FOUND(`A matching certificate was not found for certifier ${certifier} and type ${type}!`)
+
+    // Get an anyone verifiable certificate
     const verifiableCertificate = await SDK.proveCertificate({
-      certificate: certificates[0],
+      certificate,
       fieldsToReveal,
       verifierPublicIdentityKey: 'anyone'
     })
@@ -128,7 +137,7 @@ export class Signia {
    * @returns {object}
    */
   private async parseResults(data: object): Promise<object> {
-    // TODO: Implement necessary parsing -----------------------------
+    // TODO: Implement any necessary parsing -----------------------------
     throw new Error('Parsing not implemented!')
   }
   /**
