@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@babbage/sdk": "^0.4.25",
+    "@cwi/confederacy": "^0.1.19",
     "authrite-js": "^0.2.15",
     "cwi-base": "^0.2.0",
     "documentation": "^14.0.2",

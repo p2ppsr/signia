@@ -5,6 +5,7 @@ import pushdrop from 'pushdrop'
 import { Authrite } from 'authrite-js'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { ERR_SIGNIA_CERT_NOT_FOUND } from './ERR_SIGNIA'
+import { Output } from '@cwi/confederacy'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
@@ -62,22 +63,23 @@ export class Signia {
       verifierPublicIdentityKey: 'anyone'
     })
 
-    // TODO: Check if an existing Signia token is found
-    const [previousToken] = await this.makeAuthenticatedRequest(
+    // Check if an existing Signia token is found
+    // TODO: Check return value
+    const [previousTokenEnvelope]: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       { certifier }
-    ) as object[] // TODO: test result
+    )
 
     // No inputs, unless redeeming a previous UTXO
     let actionInputs = {}
 
     // Check if an existing token was found
     // TODO: Import UTXO def for type checking
-    if (previousToken) {
+    if (previousTokenEnvelope) {
       const unlockingScript = await pushdrop.redeem({
-        prevTxId: previousToken.txid,
-        outputIndex: previousToken.vout,
-        lockingScript: previousToken.outputScript,
+        prevTxId: previousTokenEnvelope.txid,
+        outputIndex: previousTokenEnvelope.vout,
+        lockingScript: previousTokenEnvelope.outputScript,
         outputAmount: this.config.tokenAmount,
         protocolID: this.config.protocolID,
         keyID: this.config.keyID,
@@ -86,19 +88,19 @@ export class Signia {
 
       // Define the input UTXOs to redeem in this transaction
       actionInputs = {
-        [previousToken.txid]: {
-          ...previousToken,
-          inputs: typeof previousToken.inputs === 'string'
-            ? JSON.parse(previousToken.inputs)
-            : previousToken.inputs,
-          mapiResponses: typeof previousToken.mapiResponses === 'string'
-            ? JSON.parse(previousToken.mapiResponses)
-            : previousToken.mapiResponses,
-          proof: typeof previousToken.proof === 'string'
-            ? JSON.parse(previousToken.proof)
-            : previousToken.proof,
+        [previousTokenEnvelope.txid]: {
+          ...previousTokenEnvelope,
+          inputs: typeof previousTokenEnvelope.inputs === 'string'
+            ? JSON.parse(previousTokenEnvelope.inputs)
+            : previousTokenEnvelope.inputs,
+          mapiResponses: typeof previousTokenEnvelope.mapiResponses === 'string'
+            ? JSON.parse(previousTokenEnvelope.mapiResponses)
+            : previousTokenEnvelope.mapiResponses,
+          proof: typeof previousTokenEnvelope.proof === 'string'
+            ? JSON.parse(previousTokenEnvelope.proof)
+            : previousTokenEnvelope.proof,
           outputsToRedeem: [{
-            index: previousToken.vout,
+            index: previousTokenEnvelope.vout,
             unlockingScript
           }]
         }
@@ -108,7 +110,6 @@ export class Signia {
     // Build the output with pushdrop.create() and the transaction with createAction()
     const bitcoinOutputScript = await pushdrop.create({
       fields: [
-        // identityKey required as a field?
         Buffer.from(JSON.stringify(verifiableCertificate))
       ],
       protocolID: this.config.protocolID,
@@ -180,17 +181,17 @@ export class Signia {
    * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
    * @returns {object}
    */
-  private async parseResults(data: object): Promise<object> {
-    // TODO: Implement any necessary parsing -----------------------------
-    throw new Error('Parsing not implemented!')
-  }
+  // private async parseResults(data: object): Promise<object> {
+  //   // TODO: Implement any necessary parsing -----------------------------
+  //   throw new Error('Parsing not implemented!')
+  // }
   /**
    * Helper function for making Authrite HTTP requests
    * @param {string} route - name of lookup service action
    * @param {object} body - of request
    * @returns {object} - result of HTTP request
    */
-  private async makeAuthenticatedRequest(route: string, body: object): Promise<object> {
+  private async makeAuthenticatedRequest(route: string, body: object): Promise<Output[]> {
     // Make a post request over Authrite
     const result = await this.authrite.request(`${this.config.confederacyHost}/${route}`, {
       method: 'POST',
@@ -199,7 +200,8 @@ export class Signia {
       },
       body
     })
-    const jsonResult = await result.json()
-    return await this.parseResults(jsonResult)
+    // const jsonResult = await result.json()
+    // return await this.parseResults(jsonResult)
+    return await result.json()
   }
 }
