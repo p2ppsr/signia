@@ -5,12 +5,12 @@ import pushdrop from 'pushdrop'
 import { Authrite } from 'authrite-js'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { ERR_SIGNIA_CERT_NOT_FOUND } from './ERR_SIGNIA'
-import { Output } from '@cwi/confederacy'
+import { Output } from 'confederacy-base'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
   'https://confederacy.babbage.systems',
-  [0, 'signia'],
+  [1, 'signia'],
   '1',
   1000,
   ['signia'],
@@ -60,7 +60,7 @@ export class Signia {
     const verifiableCertificate = await SDK.proveCertificate({
       certificate,
       fieldsToReveal,
-      verifierPublicIdentityKey: 'anyone'
+      verifierPublicIdentityKey: 'anyone' // TODO: Test!
     })
 
     // Check if an existing Signia token is found
