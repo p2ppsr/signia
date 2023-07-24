@@ -12,7 +12,7 @@ import { ERR_BAD_REQUEST } from 'cwi-base'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
-  'https://confederacy.babbage.systems',
+  'http://localhost:3103',
   [1, 'signia'],
   '1',
   1000,
@@ -63,7 +63,7 @@ export class Signia {
       }
     })
 
-    // Make sure a certificate was found
+    // If no certificate is found, the user needs to request one before revealing particular attributes
     if (!certificates || certificates.length === 0) throw new ERR_SIGNIA_CERT_NOT_FOUND(`A matching certificate was not found for certifier ${this.certifierPublicKey} and type ${SIGNICERT_TYPE}!`)
 
     // Use the latest certificate (for now)
@@ -71,26 +71,30 @@ export class Signia {
 
     // Get an anyone verifiable certificate
     const verifiableCertificate = await SDK.proveCertificate({
-      certificate,
+      certificate: certificate,
       fieldsToReveal,
       verifierPublicIdentityKey: new bsv.PrivateKey('0000000000000000000000000000000000000000000000000000000000000001').publicKey.toString('hex')
     })
 
-    // Check if an existing Signia token is found
-    // TODO: Check return value
-    const [previousTokenEnvelope]: Output[] = await this.makeAuthenticatedRequest(
+    // Check if an existing Signia token is found ??
+    const lookupResults: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       { 
         provider: 'Signia',
         query: { certifier: this.certifierPublicKey }
        }
     )
+    // Get the first results...
+    // Note: in this context there should only be one previous if there is an update
+    let previousTokenEnvelope
+    if (lookupResults && lookupResults.length !== 0) {
+      previousTokenEnvelope = lookupResults[0]
+    }
 
     // No inputs, unless redeeming a previous UTXO
     let actionInputs = {}
 
     // Check if an existing token was found
-    // TODO: Import UTXO def for type checking
     if (previousTokenEnvelope) {
       const unlockingScript = await pushdrop.redeem({
         prevTxId: previousTokenEnvelope.txid,
@@ -99,7 +103,7 @@ export class Signia {
         outputAmount: this.config.tokenAmount,
         protocolID: this.config.protocolID,
         keyID: this.config.keyID,
-        counterparty: 'self'
+        counterparty: 'anyone'
       })
 
       // Define the input UTXOs to redeem in this transaction
@@ -153,7 +157,7 @@ export class Signia {
 
   /**
    * Requests a new signed Signia identity certificate
-   * @param certificateFields 
+   * @param certificateFields - certificate fields object whose keys are the type and value is the content
    * @returns 
    */
   async requestCertificate(certificateFields: object) {
@@ -166,46 +170,11 @@ export class Signia {
       throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
     }
 
-    // If the certifier implements a confirmCertificate route, we can
-    // use it to see if we're already able to provide the certificate
-    // to someone who requests it, with specific field values.
-    // This will fail if we do not authorize the certifier to access the certificate.
-    // const confirmResponse = await client.createSignedRequest('/confirmCertificate', { domain, identity })
-
-    // if (confirmResponse.status === 'success') {
-    //   return
-    // }
-
-    // console.log('confirmCertificate response:', confirmResponse)
-
-    // We can use the babbage sdk to retrieve certificates we already have which
-    // were issued by this certifier, of this certificate type, with specific fields:
-    // const certificates = await decryptOwnedCertificates({
-    //   types: Object.fromEntries([[SIGNICERT_TYPE, certificateFields]]),
-    //   certifiers: [this.certifierPublicKey],
-    //   callerAgreesToKeepDataClientSide: true // ?
-    // })
-    // We must implement both field value value checking to determine if
-    // we already have a certificate for the current domain and identity values.
-    // if (certificates.some(c => c.fields.domain === domain && c.fields.identity === identity)) {
-    //   // The Babbage SDK was able to find this certificate in our private account records.
-    //   setCertExists(true)
-    //   return
-    // }
-
-    // Don't have a certificate yet. Request a new one.
-    // const newCertificateFields = {
-    //   firstName: domain,
-    //   lastName: identity,
-    //   profilePhoto: 'nanostoreURL?'
-    // }
-
+    // Is confirmCertificate necessary?
     // Check if the user's identity has been verified
-    const verified = await client.createSignedRequest('/checkVerificationStatus', {
-      certificateFields
-    })
+    const results = await client.createSignedRequest('/checkVerificationStatus')
 
-    if (!verified) {
+    if (results.status === 'notVerified') {
       throw new Error('User identity has not been verified!')
     }
 
@@ -216,9 +185,24 @@ export class Signia {
       certifierPublicKey: this.certifierPublicKey
     })
 
-    // const confirmStatus = await client.createSignedRequest('/confirmCertificate', { domain, identity })
-
     return certificate
+  }
+
+  /**
+   * Example higher level lookup function
+   * @param identityKey 
+   * @returns {object} - with identity information
+   */
+  async getNameFromKey(identityKey: string): Promise<object> {
+    const [certificate]:Certificate[] = await this.discoverByIdentityKey(identityKey) as Certificate[]
+    if (!certificate || !certificate.decryptedFields || !certificate.decryptedFields.firstName || !certificate.decryptedFields.lastName) {
+      return {}
+    }
+    const fields = certificate.decryptedFields
+    return {
+      firstName: fields.firstName,
+      lastName: fields.lastName
+    }
   }
 
   /**
@@ -300,7 +284,7 @@ export class Signia {
         // Parse out the certificate and relevant data
         const certificate =  JSON.parse((result as Certificate).fields[0].toString())
         const decryptedFields = await decryptCertificateFields(certificate, certificate.keyring, '0000000000000000000000000000000000000000000000000000000000000001')
-        parsedResults.push({ ...decryptedFields, identityKey: certificate.subject, certifier: certificate.certifier})
+        parsedResults.push({...certificate, decryptedFields})
       } catch (error) {
         // do nothing
       }      
@@ -336,5 +320,12 @@ interface Certificate {
   certifier: string,
   revocationOutpoint: string,
   signature: string, // ?
-  keyring: object
+  keyring: object,
+  decryptedFields: SigniaFields
+}
+
+interface SigniaFields {
+  firstName: string,
+  lastName: string,
+  profilePhoto: string
 }
