@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import SDK from '@babbage/sdk'
 import pushdrop from 'pushdrop'
-import { AuthriteClient } from 'authrite-js'
+import bsv from 'babbage-bsv'
+import { Authrite, AuthriteClient } from 'authrite-js'
+import { decryptCertificateFields } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { ERR_SIGNIA_CERT_NOT_FOUND } from './ERR_SIGNIA'
 import { Output } from 'confederacy-base'
@@ -14,7 +16,7 @@ const defaultConfig = new ConfederacyConfig(
   [1, 'signia'],
   '1',
   1000,
-  ['signia'],
+  ['Signia'],
   undefined,
   undefined,
   false,
@@ -24,7 +26,7 @@ const defaultConfig = new ConfederacyConfig(
 
 const SIGNICERT_TYPE = 'z40BOInXkI8m7f/wBrv4MJ09bZfzZbTj2fJqCtONqCY='
 const SIGNICERT_PUBLIC_KEY = '036dc48522aba1705afbb43df3c04dbd1da373b6154341a875bceaa2a3e7f21528'
-const SIGNICERT_URL = 'https://signicert.babbage.systems'
+const SIGNICERT_URL = 'http://localhost:3002' // TODO: Set to PROD SERVER
 
 /**
  * A system for decentralized identity management
@@ -38,11 +40,11 @@ export class Signia {
    * @param {string} certifierUrl
    */
   constructor (
-    public config: ConfederacyConfig = defaultConfig,
+    public config: ConfederacyConfig = defaultConfig, // use named params?
     public certifierUrl: string = SIGNICERT_URL,
     public certifierPublicKey: string = SIGNICERT_PUBLIC_KEY
   ) {
-    this.authrite = new AuthriteClient(this.config.authriteConfig)
+    this.authrite = new Authrite(this.config.authriteConfig)
   }
   
   /**
@@ -54,8 +56,7 @@ export class Signia {
   async publiclyRevealIdentityAttributes(fieldsToReveal:string[]): Promise<object> {
 
     // Search for a matching certificate
-    debugger
-    const [certificate] = await SDK.getCertificates({
+    const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
       types: {
         [SIGNICERT_TYPE]: fieldsToReveal
@@ -63,20 +64,26 @@ export class Signia {
     })
 
     // Make sure a certificate was found
-    if (!certificate) throw new ERR_SIGNIA_CERT_NOT_FOUND(`A matching certificate was not found for certifier ${this.certifierPublicKey} and type ${SIGNICERT_TYPE}!`)
+    if (!certificates || certificates.length === 0) throw new ERR_SIGNIA_CERT_NOT_FOUND(`A matching certificate was not found for certifier ${this.certifierPublicKey} and type ${SIGNICERT_TYPE}!`)
+
+    // Use the latest certificate (for now)
+    const certificate = certificates[certificates.length - 1]
 
     // Get an anyone verifiable certificate
     const verifiableCertificate = await SDK.proveCertificate({
       certificate,
       fieldsToReveal,
-      verifierPublicIdentityKey: 'anyone' // TODO: Test!
+      verifierPublicIdentityKey: new bsv.PrivateKey('0000000000000000000000000000000000000000000000000000000000000001').publicKey.toString('hex')
     })
 
     // Check if an existing Signia token is found
     // TODO: Check return value
     const [previousTokenEnvelope]: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
-      { certifier: this.certifierPublicKey }
+      { 
+        provider: 'Signia',
+        query: { certifier: this.certifierPublicKey }
+       }
     )
 
     // No inputs, unless redeeming a previous UTXO
@@ -122,7 +129,9 @@ export class Signia {
         Buffer.from(JSON.stringify(verifiableCertificate))
       ],
       protocolID: this.config.protocolID,
-      keyID: this.config.keyID
+      keyID: this.config.keyID,
+      counterparty: 'anyone',
+      counterpartyCanVerifyMyOwnership: true
     })
 
     // Redeem any previous UTXOs, and create a new Signia token
@@ -215,16 +224,19 @@ export class Signia {
   /**
    * Query the lookup service for the given attribute (and optional certifier) and parseResults
    * @public 
-   * @param attribute 
+   * @param attributes 
    * @param certifier 
    * @returns {object}
    */
-  async discoverByAttribute(attribute: string, certifier?: string): Promise<object> {
+  async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object> {
     
     // Request data from the Signia lookup service
     const results =  await this.makeAuthenticatedRequest(
       'lookup',
-      { attribute, certifier }
+      {
+        provider: 'Signia',
+        query: { attributes, certifier }
+      }
     )
     // TODO: Decide what information to return (ex. parsedResults.fields[0])
     const parsedResults = await this.parseResults(results)
@@ -238,13 +250,16 @@ export class Signia {
    * @param certifier 
    * @returns {object}
    */
-  async discoverByIdentityKey(identityKey: string, certifier?: string): Promise<object> {
+  async discoverByIdentityKey(identityKey: string, certifier: string = this.certifierPublicKey): Promise<object> {
     // Lookup identity data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
-      { identityKey, certifier }
+      { 
+        provider: 'Signia',
+        query: { identityKey, certifier }
+      }
     )
-    // TODO: Decide what information to return (ex. parsedResults.fields[0])
+    // Parse out the relevant data
     const parsedResults = await this.parseResults(results)
     return parsedResults
   }
@@ -255,12 +270,15 @@ export class Signia {
    * @param certifier 
    * @returns {object}
    */
-  async discoverByCertifier(certifier: string): Promise<object> {
+  async discoverByCertifier(certifier: string = this.certifierPublicKey): Promise<object> {
     const results = await this.makeAuthenticatedRequest(
       'lookup',
-      { certifier }
+      {
+        provider: 'Signia',
+        query: { certifier }
+      }
     )
-    // TODO: Decide what information to return (ex. parsedResults.fields[0])
+    // Parse out the relevant data
     const parsedResults = await this.parseResults(results)
     return parsedResults
   }
@@ -278,7 +296,11 @@ export class Signia {
           script: output.outputScript,
           fieldFormat: 'buffer'
         })
-        parsedResults.push(result)
+
+        // Parse out the certificate and relevant data
+        const certificate =  JSON.parse((result as Certificate).fields[0].toString())
+        const decryptedFields = await decryptCertificateFields(certificate, certificate.keyring, '0000000000000000000000000000000000000000000000000000000000000001')
+        parsedResults.push({ ...decryptedFields, identityKey: certificate.subject, certifier: certificate.certifier})
       } catch (error) {
         // do nothing
       }      
@@ -300,8 +322,19 @@ export class Signia {
       },
       body
     })
-    // const jsonResult = await result.json()
-    // return await this.parseResults(jsonResult)
     return await result.json()
   }
+}
+
+// Helper type decelerations
+interface Certificate {
+  type: string,
+  subject: string,
+  validationKey: string,
+  serialNumber: string,
+  fields: object,
+  certifier: string,
+  revocationOutpoint: string,
+  signature: string, // ?
+  keyring: object
 }
