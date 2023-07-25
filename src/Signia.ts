@@ -6,13 +6,12 @@ import bsv from 'babbage-bsv'
 import { Authrite, AuthriteClient } from 'authrite-js'
 import { decryptCertificateFields } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
-import { ERR_SIGNIA_CERT_NOT_FOUND } from './ERR_SIGNIA'
 import { Output } from 'confederacy-base'
 import { ERR_BAD_REQUEST } from 'cwi-base'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig(
-  'http://localhost:3103',
+  'https://confederacy.babbage.systems',
   [1, 'signia'],
   '1',
   1000,
@@ -26,7 +25,7 @@ const defaultConfig = new ConfederacyConfig(
 
 const SIGNICERT_TYPE = 'z40BOInXkI8m7f/wBrv4MJ09bZfzZbTj2fJqCtONqCY='
 const SIGNICERT_PUBLIC_KEY = '036dc48522aba1705afbb43df3c04dbd1da373b6154341a875bceaa2a3e7f21528'
-const SIGNICERT_URL = 'http://localhost:3002' // TODO: Set to PROD SERVER
+const SIGNICERT_URL = 'https://signicert.babbage.systems'
 
 /**
  * A system for decentralized identity management
@@ -40,7 +39,7 @@ export class Signia {
    * @param {string} certifierUrl
    */
   constructor (
-    public config: ConfederacyConfig = defaultConfig, // use named params?
+    public config: ConfederacyConfig = defaultConfig, // Note: Named params might be better
     public certifierUrl: string = SIGNICERT_URL,
     public certifierPublicKey: string = SIGNICERT_PUBLIC_KEY
   ) {
@@ -55,7 +54,6 @@ export class Signia {
    */
   async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId?: string): Promise<object> {
     // Search for a matching certificate
-    debugger
     const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
       types: {
