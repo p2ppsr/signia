@@ -52,7 +52,7 @@ export class Signia {
    * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId?: string): Promise<object> {
+  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId = 'notVerified'): Promise<object> {
     // Search for a matching certificate
     const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
@@ -63,7 +63,7 @@ export class Signia {
 
     // If no certificate is found, the user needs to request one before revealing particular attributes
     let certificate: Certificate
-    if ((!certificates || certificates.length === 0 || newCertificate === true) && verificationId) {
+    if (!certificates || certificates.length === 0 || newCertificate === true) {
       // Request a new certificate
       certificate = await this.requestCertificate(fieldsToReveal, verificationId)
     } else {
@@ -219,7 +219,6 @@ export class Signia {
    * @returns {object}
    */
   async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object> {
-    
     // Request data from the Signia lookup service
     const results =  await this.makeAuthenticatedRequest(
       'lookup',
@@ -228,7 +227,7 @@ export class Signia {
         query: { attributes, certifier }
       }
     )
-    // TODO: Decide what information to return (ex. parsedResults.fields[0])
+    // Parse out the relevant data
     const parsedResults = await this.parseResults(results)
     return parsedResults
   }
