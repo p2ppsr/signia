@@ -53,37 +53,42 @@ export class Signia {
    * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:string[]): Promise<object> {
-
+  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId?: string): Promise<object> {
     // Search for a matching certificate
+    debugger
     const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
       types: {
-        [SIGNICERT_TYPE]: fieldsToReveal
+        [SIGNICERT_TYPE]: Object.keys(fieldsToReveal)
       }
     })
 
     // If no certificate is found, the user needs to request one before revealing particular attributes
-    if (!certificates || certificates.length === 0) throw new ERR_SIGNIA_CERT_NOT_FOUND(`A matching certificate was not found for certifier ${this.certifierPublicKey} and type ${SIGNICERT_TYPE}!`)
-
-    // Use the latest certificate (for now)
-    const certificate = certificates[certificates.length - 1]
+    let certificate: Certificate
+    if ((!certificates || certificates.length === 0 || newCertificate === true) && verificationId) {
+      // Request a new certificate
+      certificate = await this.requestCertificate(fieldsToReveal, verificationId)
+    } else {
+      // Use the latest certificate (for now)
+      certificate = certificates[certificates.length - 1]
+    }
 
     // Get an anyone verifiable certificate
     const verifiableCertificate = await SDK.proveCertificate({
       certificate: certificate,
-      fieldsToReveal,
+      fieldsToReveal: Object.keys(fieldsToReveal),
       verifierPublicIdentityKey: new bsv.PrivateKey('0000000000000000000000000000000000000000000000000000000000000001').publicKey.toString('hex')
     })
 
     // Check if an existing Signia token is found ??
     const lookupResults: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
-      { 
+      {
         provider: 'Signia',
         query: { certifier: this.certifierPublicKey }
        }
     )
+
     // Get the first results...
     // Note: in this context there should only be one previous if there is an update
     let previousTokenEnvelope
@@ -160,7 +165,7 @@ export class Signia {
    * @param certificateFields - certificate fields object whose keys are the type and value is the content
    * @returns 
    */
-  async requestCertificate(certificateFields: object) {
+  private async requestCertificate(certificateFields: object, verificationId: string) {
     // Create a new Authrite client for interacting with the SigniCert server
     const client = new AuthriteClient(this.certifierUrl)
 
@@ -172,12 +177,15 @@ export class Signia {
 
     // Is confirmCertificate necessary?
     // Check if the user's identity has been verified
-    const results = await client.createSignedRequest('/checkVerificationStatus')
+    const results = await client.createSignedRequest('/checkVerification', {
+      verificationId
+    })
 
-    if (results.status === 'notVerified') {
-      throw new Error('User identity has not been verified!')
+    // Check user has completed KYC verification
+    if (results.status !== 'verified') {
+      throw new Error('User identity has not verified!')
     }
-
+    
     const certificate = await client.createCertificate({
       certificateType: SIGNICERT_TYPE,
       fieldObject: certificateFields,
