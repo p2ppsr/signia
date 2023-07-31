@@ -79,11 +79,15 @@ export class Signia {
     })
 
     // Check if an existing Signia token is found ??
+    debugger
     const lookupResults: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
-        query: { certifier: this.certifierPublicKey }
+        query: { 
+          identityKey: certificate.subject,
+          certifier: this.certifierPublicKey 
+        }
        }
     )
 
@@ -216,9 +220,9 @@ export class Signia {
    * @public 
    * @param attributes 
    * @param certifier 
-   * @returns {object}
+   * @returns {object[]}
    */
-  async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object> {
+  async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object[]> {
     // Request data from the Signia lookup service
     const results =  await this.makeAuthenticatedRequest(
       'lookup',
@@ -237,9 +241,9 @@ export class Signia {
    * @public
    * @param identityKey 
    * @param certifier 
-   * @returns {object}
+   * @returns {object[]}
    */
-  async discoverByIdentityKey(identityKey: string, certifier: string = this.certifierPublicKey): Promise<object> {
+  async discoverByIdentityKey(identityKey: string, certifier: string = this.certifierPublicKey): Promise<object[]> {
     // Lookup identity data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
@@ -257,10 +261,10 @@ export class Signia {
    * Query the lookup service for the given certifier, returning all results for the certifier parseResults
    * @public
    * @param certifier 
-   * @returns {object}
+   * @returns {object[]}
    */
-  async discoverByCertifier(certifier: string = this.certifierPublicKey): Promise<object> {
-    const results = await this.makeAuthenticatedRequest(
+  async discoverByCertifier(certifier: string = this.certifierPublicKey): Promise<object[]> {
+    const results: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
