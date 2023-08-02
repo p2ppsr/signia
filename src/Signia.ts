@@ -180,7 +180,8 @@ export class Signia {
     // Is confirmCertificate necessary?
     // Check if the user's identity has been verified
     const results = await client.createSignedRequest('/checkVerification', {
-      verificationId
+      verificationId,
+      certificateFields
     })
 
     // Check user has completed KYC verification
