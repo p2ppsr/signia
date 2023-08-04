@@ -64,10 +64,40 @@ export class Signia {
     // If no certificate is found, the user needs to request one before revealing particular attributes
     let certificate: Certificate
     if (!certificates || certificates.length === 0 || newCertificate === true) {
-      // Request a new certificate
-      certificate = await this.requestCertificate(fieldsToReveal, verificationId)
+      // Create a new Authrite client for interacting with the SigniCert server
+      const client = new AuthriteClient(this.certifierUrl)
+
+      // Check if the server is who we think it is
+      const identifyResponse = await client.createSignedRequest('/identify', {})
+      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== this.certifierPublicKey) {
+        throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
+      }
+
+      // Is confirmCertificate necessary?
+      // Check if the user's identity has been verified
+      const results = await client.createSignedRequest('/checkVerification', {
+        verificationId,
+        certificateFields: fieldsToReveal
+      })
+
+      // Check user has completed KYC verification
+      if (results.status !== 'verified' || !results.uhrpURL) {
+        throw new Error('User identity has not verified!')
+      }
+
+      // Update the fields to include the profile photo UHRP URL
+      fieldsToReveal = {...fieldsToReveal, profilePhoto: results.uhrpURL}
+      
+      // Create a new certificate
+      certificate = await client.createCertificate({
+        certificateType: SIGNICERT_TYPE,
+        fieldObject: fieldsToReveal,
+        certifierUrl: this.certifierUrl,
+        certifierPublicKey: this.certifierPublicKey
+      })
     } else {
       // Use the latest certificate (for now)
+      // TODO: Consider best practices for this and removal of certificates
       certificate = certificates[certificates.length - 1]
     }
 
@@ -79,7 +109,6 @@ export class Signia {
     })
 
     // Check if an existing Signia token is found ??
-    debugger
     const lookupResults: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
@@ -160,43 +189,6 @@ export class Signia {
       'submit',
       { ...tx, topics: this.config.topics }
     )
-  }
-
-  /**
-   * Requests a new signed Signia identity certificate
-   * @param certificateFields - certificate fields object whose keys are the type and value is the content
-   * @returns 
-   */
-  private async requestCertificate(certificateFields: object, verificationId: string) {
-    // Create a new Authrite client for interacting with the SigniCert server
-    const client = new AuthriteClient(this.certifierUrl)
-
-    // Check if the server is who we think it is
-    const identifyResponse = await client.createSignedRequest('/identify', {})
-    if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== this.certifierPublicKey) {
-      throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
-    }
-
-    // Is confirmCertificate necessary?
-    // Check if the user's identity has been verified
-    const results = await client.createSignedRequest('/checkVerification', {
-      verificationId,
-      certificateFields
-    })
-
-    // Check user has completed KYC verification
-    if (results.status !== 'verified') {
-      throw new Error('User identity has not verified!')
-    }
-    
-    const certificate = await client.createCertificate({
-      certificateType: SIGNICERT_TYPE,
-      fieldObject: certificateFields,
-      certifierUrl: this.certifierUrl,
-      certifierPublicKey: this.certifierPublicKey
-    })
-
-    return certificate
   }
 
   /**
