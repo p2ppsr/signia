@@ -52,7 +52,9 @@ export class Signia {
    * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId = 'notVerified'): Promise<object> {
+  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId = 'notVerified', updateProgress = async (message) => {}): Promise<object> {
+    await updateProgress('Retrieving identity certificate...')
+
     // Search for a matching certificate
     const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
@@ -60,12 +62,15 @@ export class Signia {
         [SIGNICERT_TYPE]: Object.keys(fieldsToReveal)
       }
     })
-
+    
     // If no certificate is found, the user needs to request one before revealing particular attributes
     let certificate: Certificate
     if (!certificates || certificates.length === 0 || newCertificate === true) {
       // Create a new Authrite client for interacting with the SigniCert server
       const client = new AuthriteClient(this.certifierUrl)
+
+
+      await updateProgress('Identifying certifier...')
 
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
@@ -80,6 +85,8 @@ export class Signia {
         certificateFields: fieldsToReveal
       })
 
+      await updateProgress('Checking verification status...')
+
       // Check user has completed KYC verification
       if (results.status !== 'verified' || !results.uhrpURL) {
         throw new Error('User identity has not verified!')
@@ -87,7 +94,7 @@ export class Signia {
 
       // Update the fields to include the profile photo UHRP URL
       fieldsToReveal = {...fieldsToReveal, profilePhoto: results.uhrpURL}
-      
+
       // Create a new certificate
       certificate = await client.createCertificate({
         certificateType: SIGNICERT_TYPE,
@@ -100,6 +107,8 @@ export class Signia {
       // TODO: Consider best practices for this and removal of certificates
       certificate = certificates[certificates.length - 1]
     }
+
+    await updateProgress('Creating a verifiable certificate...')
 
     // Get an anyone verifiable certificate
     const verifiableCertificate = await SDK.proveCertificate({
@@ -183,6 +192,8 @@ export class Signia {
         script: bitcoinOutputScript
       }]
     })
+
+    await updateProgress('Processing submission...')
 
     // Register the transaction on the overlay using Authrite
     return await this.makeAuthenticatedRequest(
