@@ -223,16 +223,16 @@ export class Signia {
    * Query the lookup service for the given attribute (and optional certifier) and parseResults
    * @public 
    * @param attributes 
-   * @param certifier 
+   * @param certifiers 
    * @returns {object[]}
    */
-  async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByAttributes(attributes: object, certifiers: string[] = [this.certifierPublicKey]): Promise<object[]> {
     // Request data from the Signia lookup service
     const results =  await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
-        query: { attributes, certifier }
+        query: { attributes, certifiers } // TODO: Refactor lookup service to support more than one certifier
       }
     )
     // Parse out the relevant data
@@ -241,19 +241,19 @@ export class Signia {
   }
 
   /**
-   * Query the lookup service for the given identity key (and optional certifier) parseResults
+   * Query the lookup service for the given identity key (and optional certifiers) parseResults
    * @public
    * @param identityKey 
-   * @param certifier 
+   * @param certifiers 
    * @returns {object[]}
    */
-  async discoverByIdentityKey(identityKey: string, certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByIdentityKey(identityKey: string, certifiers: string[] = [this.certifierPublicKey]): Promise<object[]> {
     // Lookup identity data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
       { 
         provider: 'Signia',
-        query: { identityKey, certifier }
+        query: { identityKey, certifiers }
       }
     )
     // Parse out the relevant data
@@ -262,17 +262,17 @@ export class Signia {
   }
 
   /**
-   * Query the lookup service for the given certifier, returning all results for the certifier parseResults
+   * Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
    * @public
-   * @param certifier 
+   * @param certifiers 
    * @returns {object[]}
    */
-  async discoverByCertifier(certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByCertifier(certifiers: string[] = [this.certifierPublicKey]): Promise<object[]> {
     const results: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
-        query: { certifier }
+        query: { certifiers }
       }
     )
     // Parse out the relevant data
