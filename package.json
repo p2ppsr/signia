@@ -43,8 +43,8 @@
     "@babbage/sdk": "^0.4.25",
     "authrite-js": "^0.3.2",
     "authrite-utils": "^0.2.0",
-    "confederacy-base": "^0.1.0",
-    "cwi-base": "^0.2.0",
+    "confederacy-base": "^0.1.2",
+    "cwi-base": "^0.3.87",
     "documentation": "^14.0.2",
     "dotenv": "^8.2.0",
     "pushdrop": "^0.1.20"
