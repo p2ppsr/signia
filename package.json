@@ -15,9 +15,7 @@
     "test:coverage": "jest --coverage",
     "lint": "standard --fix src/**/*.js",
     "doc": "documentation readme src/Signia.ts -f md -s API -a public",
-    "web-build": "webpack --config webpack.prod.js",
-    "tonpm": "npm run tonone && npm i authrite-js authrite-utils cwi-base @babbage/sdk pushdrop --silent",
-    "tonone": "npm remove authrite-js authrite-utils cwi-base @babbage/sdk pushdrop --silent"
+    "web-build": "webpack --config webpack.prod.js"
   },
   "author": "Peer-to-peer Privacy Systems Research LLC",
   "license": "Open BSV License",
