@@ -40,14 +40,14 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
-    "@babbage/sdk": "^0.4.29",
-    "authrite-js": "^0.3.6",
-    "authrite-utils": "^0.2.1",
+    "@babbage/sdk": "^0.4.31",
+    "authrite-js": "^0.3.7",
+    "authrite-utils": "^0.2.2",
     "babbage-bsv": "^0.2.2",
     "confederacy-base": "^0.1.2",
-    "cwi-base": "^0.3.90",
+    "cwi-base": "^0.3.91",
     "documentation": "^14.0.2",
     "dotenv": "^8.2.0",
-    "pushdrop": "^0.1.25"
+    "pushdrop": "^0.1.27"
   }
 }
