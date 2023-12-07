@@ -15,7 +15,9 @@
     "test:coverage": "jest --coverage",
     "lint": "standard --fix src/**/*.js",
     "doc": "documentation readme src/Signia.ts -f md -s API -a public",
-    "web-build": "webpack --config webpack.prod.js"
+    "web-build": "webpack --config webpack.prod.js",
+    "tonpm": "npm run tonone && npm i authrite-js authrite-utils cwi-base @babbage/sdk pushdrop --silent",
+    "tonone": "npm remove authrite-js authrite-utils cwi-base @babbage/sdk pushdrop --silent"
   },
   "author": "Peer-to-peer Privacy Systems Research LLC",
   "license": "Open BSV License",
@@ -28,6 +30,7 @@
     "eslint": "^8.34.0",
     "jest": "^29.4.3",
     "mock-knex": "^0.4.11",
+    "node-polyfill-webpack-plugin": "^1.1.4",
     "nodemon": "^2.0.4",
     "ts-jest": "^29.0.5",
     "ts-node": "^10.9.1",
@@ -36,17 +39,16 @@
     "webpack-bundle-analyzer": "^4.7.0",
     "webpack-cli": "^4.10.0",
     "webpack-dev-server": "^4.9.2",
-    "webpack-merge": "^5.8.0",
-    "node-polyfill-webpack-plugin": "^1.1.4"
+    "webpack-merge": "^5.8.0"
   },
   "dependencies": {
-    "@babbage/sdk": "^0.4.25",
-    "authrite-js": "^0.3.2",
-    "authrite-utils": "^0.2.0",
+    "@babbage/sdk": "^0.4.29",
+    "authrite-js": "^0.3.6",
+    "authrite-utils": "^0.2.1",
     "confederacy-base": "^0.1.2",
-    "cwi-base": "^0.3.87",
+    "cwi-base": "^0.3.90",
     "documentation": "^14.0.2",
     "dotenv": "^8.2.0",
-    "pushdrop": "^0.1.20"
+    "pushdrop": "^0.1.25"
   }
 }
