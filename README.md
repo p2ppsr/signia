@@ -25,6 +25,9 @@ A system for decentralized identity management
 
 #### Parameters
 
+*   `` &#x20;
+*   `` &#x20;
+*   `` &#x20;
 *   `config` **ConfederacyConfig**&#x20;
 *   `certifierUrl` **[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)**&#x20;
 
@@ -37,6 +40,7 @@ Publicly reveal identity attributes to the Signia overlay
 *   `fieldsToReveal` **[Array](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array)<[string](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String)>**&#x20;
 *   `newCertificate` **[boolean](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean)?**&#x20;
 *   `verificationId`   (optional, default `'notVerified'`)
+*   `updateProgress`   (optional, default `async message=>{}`)
 
 Returns **[object](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object)** submission confirmation from the overlay
 
