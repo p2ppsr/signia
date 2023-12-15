@@ -8,9 +8,10 @@ import { decryptCertificateFields } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
 import { ERR_BAD_REQUEST } from 'cwi-base'
+import { ERR_SIGNIA_MISSING_PARAM } from './ERR_SIGNIA'
 
 // TODO: Rethink where this should be defined
-const defaultConfig = new ConfederacyConfig(
+const defaultConfig = new ConfederacyConfig( 
   'https://confederacy.babbage.systems',
   [1, 'signia'],
   '1',
@@ -23,10 +24,6 @@ const defaultConfig = new ConfederacyConfig(
   'localToSelf'
 )
 
-const SIGNICERT_TYPE = 'z40BOInXkI8m7f/wBrv4MJ09bZfzZbTj2fJqCtONqCY='
-const SIGNICERT_PUBLIC_KEY = '036dc48522aba1705afbb43df3c04dbd1da373b6154341a875bceaa2a3e7f21528'
-const SIGNICERT_URL = 'https://signicert.babbage.systems'
-
 /**
  * A system for decentralized identity management
  * @public
@@ -35,14 +32,32 @@ export class Signia {
   private authrite: AuthriteClient
   /**
    * Constructs a new Signia instance
-   * @param {ConfederacyConfig} config 
-   * @param {string} certifierUrl
+   * @param {ConfederacyConfig} config - the configuration object required by Confederacy
+   * @param {string} certifierUrl - the URL of the certificate certifier
+   * @param {string} certifierPublicKey - the public key of the certifier
+   * @param {string} certificateType - denotes the type of the certificate being created or queried
    */
   constructor (
-    public config: ConfederacyConfig = defaultConfig, // Note: Named params might be better
-    public certifierUrl: string = SIGNICERT_URL,
-    public certifierPublicKey: string = SIGNICERT_PUBLIC_KEY
+    public config: ConfederacyConfig = defaultConfig,
+    public certifierUrl: string,
+    public certifierPublicKey: string,
+    public certificateType: string,
   ) {
+    if (!certifierUrl) {
+      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide a certifier url.')
+      e.code = 'ERR_MISSING_CERTIFIER_URL'
+      throw e
+    }
+    if (!certifierPublicKey) {
+      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide a certifier public key.')
+      e.code = 'ERR_MISSING_CERTIFIER_PUBLIC_KEY'
+      throw e
+    }
+    if (!certificateType) {
+      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide an expected certificate type.')
+      e.code = 'ERR_MISSING_CERTIFICATE_TYPE'
+      throw e
+    }
     this.authrite = new Authrite(this.config.authriteConfig)
   }
   
@@ -59,7 +74,7 @@ export class Signia {
     const certificates = await SDK.getCertificates({
       certifiers: [this.certifierPublicKey],
       types: {
-        [SIGNICERT_TYPE]: Object.keys(fieldsToReveal)
+        [this.certificateType]: Object.keys(fieldsToReveal)
       }
     })
     
@@ -97,7 +112,7 @@ export class Signia {
 
       // Create a new certificate
       certificate = await client.createCertificate({
-        certificateType: SIGNICERT_TYPE,
+        certificateType: this.certificateType,
         fieldObject: fieldsToReveal,
         certifierUrl: this.certifierUrl,
         certifierPublicKey: this.certifierPublicKey
