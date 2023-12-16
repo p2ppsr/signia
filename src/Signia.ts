@@ -8,7 +8,6 @@ import { decryptCertificateFields } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
 import { ERR_BAD_REQUEST } from 'cwi-base'
-import { ERR_SIGNIA_MISSING_PARAM } from './ERR_SIGNIA'
 
 // TODO: Rethink where this should be defined
 const defaultConfig = new ConfederacyConfig( 
@@ -33,31 +32,10 @@ export class Signia {
   /**
    * Constructs a new Signia instance
    * @param {ConfederacyConfig} config - the configuration object required by Confederacy
-   * @param {string} certifierUrl - the URL of the certificate certifier
-   * @param {string} certifierPublicKey - the public key of the certifier
-   * @param {string} certificateType - denotes the type of the certificate being created or queried
    */
   constructor (
     public config: ConfederacyConfig = defaultConfig,
-    public certifierUrl: string,
-    public certifierPublicKey: string,
-    public certificateType: string,
   ) {
-    if (!certifierUrl) {
-      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide a certifier url.')
-      e.code = 'ERR_MISSING_CERTIFIER_URL'
-      throw e
-    }
-    if (!certifierPublicKey) {
-      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide a certifier public key.')
-      e.code = 'ERR_MISSING_CERTIFIER_PUBLIC_KEY'
-      throw e
-    }
-    if (!certificateType) {
-      const e = new ERR_SIGNIA_MISSING_PARAM('You must provide an expected certificate type.')
-      e.code = 'ERR_MISSING_CERTIFICATE_TYPE'
-      throw e
-    }
     this.authrite = new Authrite(this.config.authriteConfig)
   }
   
@@ -67,14 +45,14 @@ export class Signia {
    * @param {Array<string>} fieldsToReveal 
    * @returns {object} - submission confirmation from the overlay
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:object, newCertificate?: boolean, verificationId = 'notVerified', updateProgress = async (message) => {}): Promise<object> {
+  async publiclyRevealIdentityAttributes(fieldsToReveal:object, certifierUrl: string, certifierPublicKey: string, certificateType: string, verificationId = 'notVerified', newCertificate?: boolean, updateProgress = async (message) => {}): Promise<object> {
     await updateProgress('Retrieving identity certificate...')
-
+    
     // Search for a matching certificate
     const certificates = await SDK.getCertificates({
-      certifiers: [this.certifierPublicKey],
+      certifiers: [certifierPublicKey],
       types: {
-        [this.certificateType]: Object.keys(fieldsToReveal)
+        [certificateType]: Object.keys(fieldsToReveal)
       }
     })
     
@@ -82,14 +60,14 @@ export class Signia {
     let certificate: Certificate
     if (!certificates || certificates.length === 0 || newCertificate === true) {
       // Create a new Authrite client for interacting with the SigniCert server
-      const client = new AuthriteClient(this.certifierUrl)
+      const client = new AuthriteClient(certifierUrl)
 
 
       await updateProgress('Identifying certifier...')
 
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
-      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== this.certifierPublicKey) {
+      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey) {
         throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
       }
 
@@ -112,10 +90,10 @@ export class Signia {
 
       // Create a new certificate
       certificate = await client.createCertificate({
-        certificateType: this.certificateType,
+        certificateType,
         fieldObject: fieldsToReveal,
-        certifierUrl: this.certifierUrl,
-        certifierPublicKey: this.certifierPublicKey
+        certifierUrl,
+        certifierPublicKey
       })
     } else {
       // Use the latest certificate (for now)
@@ -139,7 +117,7 @@ export class Signia {
         provider: 'Signia',
         query: { 
           identityKey: certificate.subject,
-          certifier: this.certifierPublicKey 
+          certifiers: [certifierPublicKey]
         }
        }
     )
@@ -222,8 +200,8 @@ export class Signia {
    * @param identityKey 
    * @returns {object} - with identity information
    */
-  async getNameFromKey(identityKey: string): Promise<object> {
-    const [certificate]:Certificate[] = await this.discoverByIdentityKey(identityKey) as Certificate[]
+  async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> {
+    const [certificate]:Certificate[] = await this.discoverByIdentityKey(identityKey, certifiers) as Certificate[]
     if (!certificate || !certificate.decryptedFields || !certificate.decryptedFields.firstName || !certificate.decryptedFields.lastName) {
       return {}
     }
@@ -235,19 +213,19 @@ export class Signia {
   }
 
   /**
-   * Query the lookup service for the given attribute (and optional certifier) and parseResults
+   * Query the lookup service for the given attribute (and optional certifiers) and parseResults
    * @public 
    * @param attributes 
-   * @param certifier 
+   * @param certifiers
    * @returns {object[]}
    */
-  async discoverByAttributes(attributes: object, certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> {
     // Request data from the Signia lookup service
     const results =  await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
-        query: { attributes, certifier }
+        query: { attributes, certifiers }
       }
     )
     // Parse out the relevant data
@@ -256,19 +234,19 @@ export class Signia {
   }
 
   /**
-   * Query the lookup service for the given identity key (and optional certifier) parseResults
+   * Query the lookup service for the given identity key (and optional certifiers) parseResults
    * @public
    * @param identityKey 
-   * @param certifier 
+   * @param certifiers 
    * @returns {object[]}
    */
-  async discoverByIdentityKey(identityKey: string, certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> {
     // Lookup identity data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
       { 
         provider: 'Signia',
-        query: { identityKey, certifier }
+        query: { identityKey, certifiers }
       }
     )
     // Parse out the relevant data
@@ -277,17 +255,17 @@ export class Signia {
   }
 
   /**
-   * Query the lookup service for the given certifier, returning all results for the certifier parseResults
+   * Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
    * @public
-   * @param certifier 
+   * @param certifiers 
    * @returns {object[]}
    */
-  async discoverByCertifier(certifier: string = this.certifierPublicKey): Promise<object[]> {
+  async discoverByCertifier(certifiers: string[]): Promise<object[]> {
     const results: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
         provider: 'Signia',
-        query: { certifier }
+        query: { certifiers }
       }
     )
     // Parse out the relevant data
