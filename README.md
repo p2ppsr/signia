@@ -102,7 +102,7 @@ Returns
 
 ##### Method publiclyRevealAttributes
 
-Publicly reveal attributes to the Signia overlay
+Publicly reveal attributes to the Signia overlay.
 
 ```ts
 async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
@@ -110,7 +110,24 @@ async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, cer
 
 Returns
 
-- submission confirmation from the overlay
+A promise that resolves with the results of the submission to the overlay.
+
+Argument Details
+
++ **fieldsToReveal**
+  + The fields to reveal.
++ **certifierUrl**
+  + The URL of the certifier.
++ **certifierPublicKey**
+  + The public key of the certifier.
++ **certificateType**
+  + The type of certificate.
++ **newCertificate**
+  + Indicates if a new certificate should be created. Default is false.
++ **preVerifiedData**
+  + Verification data to send to the certifier if the attributes have been preVerified. Can be undefined.
++ **updateProgress**
+  + A callback function to update progress. Default is an empty asynchronous function.
 
 </details>
 

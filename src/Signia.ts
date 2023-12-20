@@ -31,16 +31,22 @@ export class Signia {
       false,
       false,
       'localToSelf'
-    ),
+    )
   ) {
     this.authrite = new Authrite(this.config.authriteConfig)
   }
   
   /**
-   * Publicly reveal attributes to the Signia overlay
-   * @public
-   * @param {Array<string>} fieldsToReveal 
-   * @returns {object} - submission confirmation from the overlay
+   * Publicly reveal attributes to the Signia overlay.
+   * 
+   * @param {object} fieldsToReveal - The fields to reveal.
+   * @param {string} certifierUrl - The URL of the certifier.
+   * @param {string} certifierPublicKey - The public key of the certifier.
+   * @param {string} certificateType - The type of certificate.
+   * @param {boolean} [newCertificate=false] - Indicates if a new certificate should be created. Default is false.
+   * @param {object} preVerifiedData - Verification data to send to the certifier if the attributes have been preVerified. Can be undefined.
+   * @param {(message: string) => Promise<void>} [updateProgress] - A callback function to update progress. Default is an empty asynchronous function.
+   * @returns {Promise<object>} A promise that resolves with the results of the submission to the overlay.
    */
   async publiclyRevealAttributes(fieldsToReveal:object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => {}): Promise<object> {
     // Search for a matching certificate
