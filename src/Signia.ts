@@ -90,7 +90,7 @@ export class Signia {
         })
 
         // Check user has completed KYC verification
-        if (results.status !== 'verified' || !results.uhrpURL) {
+        if (results.status !== 'verified') {
           throw new Error('Attributes have not been verified!')
         }
       } else {
