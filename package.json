@@ -1,6 +1,6 @@
 {
   "name": "babbage-signia",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Decentralized Identity Management",
   "main": "./out/src/index.js",
   "types": "./out/src/index.d.ts",
@@ -42,11 +42,11 @@
   },
   "dependencies": {
     "@babbage/sdk": "^0.4.33",
-    "authrite-js": "^0.3.14",
-    "authrite-utils": "^0.2.9",
+    "authrite-js": "^0.3.15",
+    "authrite-utils": "^0.2.10",
     "babbage-bsv": "^0.2.4",
     "confederacy-base": "^0.1.2",
-    "cwi-base": "^0.3.95",
+    "cwi-base": "^0.3.96",
     "dotenv": "^8.2.0",
     "pushdrop": "^0.1.30"
   }
