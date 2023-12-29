@@ -67,7 +67,7 @@ export class Signia {
       // Create a new Authrite client for interacting with the SigniCert server
       const client = new AuthriteClient(certifierUrl)
       await updateProgress('Identifying certifier...')
-
+      
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
       if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey) {
@@ -84,15 +84,21 @@ export class Signia {
       if (preVerifiedData) {
         // Is confirmCertificate necessary?
         await updateProgress('Checking verification status...')
-        const results = await client.createSignedRequest('/checkVerification', {
+        const verificationResponse = await client.createSignedRequest('/checkVerification', {
           preVerifiedData,
           certificateFields: fieldsToReveal
         })
 
         // Check user has completed KYC verification
-        if (results.status !== 'verified') {
+        if (verificationResponse.status !== 'verified') {
           throw new Error('Attributes have not been verified!')
         }
+        
+        // The fields returned from the certifier are the fields that have been certified.
+        // Note: these may contain additional data if it is necessary such as when a profile photo is verified and a UHRP url is returned as a field.
+        // Additional fields cannot be added as the kernal does an additional check before signing.
+        // The field data returned from the certifier could potentially be wrong, but it is the certifier who's reputation is at stake.
+        fieldsToReveal = verificationResponse.verifiedAttributes
       } else {
         await updateProgress('Submitting attributes for verification...')
         // Submit attributes to reveal for verification by the certifier
