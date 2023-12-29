@@ -9,22 +9,8 @@ import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
 import { ERR_BAD_REQUEST } from 'cwi-base'
 
-// TODO: Rethink where this should be defined
-const defaultConfig = new ConfederacyConfig( 
-  'https://confederacy.babbage.systems',
-  [1, 'signia'],
-  '1',
-  1000,
-  ['Signia'],
-  undefined,
-  undefined,
-  false,
-  false,
-  'localToSelf'
-)
-
 /**
- * A system for decentralized identity management
+ * A system for decentralized identity attribute attestation and lookup
  * @public
  */
 export class Signia {
@@ -34,59 +20,101 @@ export class Signia {
    * @param {ConfederacyConfig} config - the configuration object required by Confederacy
    */
   constructor (
-    public config: ConfederacyConfig = defaultConfig,
+    public config = new ConfederacyConfig( 
+      'https://confederacy.babbage.systems',
+      [1, 'signia'],
+      '1',
+      1000,
+      ['Signia'],
+      undefined,
+      undefined,
+      false,
+      false,
+      'localToSelf'
+    )
   ) {
     this.authrite = new Authrite(this.config.authriteConfig)
   }
   
   /**
-   * Publicly reveal identity attributes to the Signia overlay
-   * @public
-   * @param {Array<string>} fieldsToReveal 
-   * @returns {object} - submission confirmation from the overlay
+   * Publicly reveal attributes to the Signia overlay.
+   * 
+   * @param {object} fieldsToReveal - The fields to reveal.
+   * @param {string} certifierUrl - The URL of the certifier.
+   * @param {string} certifierPublicKey - The public key of the certifier.
+   * @param {string} certificateType - The type of certificate.
+   * @param {boolean} [newCertificate=false] - Indicates if a new certificate should be created. Default is false.
+   * @param {object} preVerifiedData - Verification data to send to the certifier if the attributes have been preVerified. Can be undefined.
+   * @param {(message: string) => Promise<void>} [updateProgress] - A callback function to update progress. Default is an empty asynchronous function.
+   * @returns {Promise<object>} A promise that resolves with the results of the submission to the overlay.
    */
-  async publiclyRevealIdentityAttributes(fieldsToReveal:object, certifierUrl: string, certifierPublicKey: string, certificateType: string, verificationId = 'notVerified', newCertificate?: boolean, updateProgress = async (message) => {}): Promise<object> {
-    await updateProgress('Retrieving identity certificate...')
-    
+  async publiclyRevealAttributes(fieldsToReveal:object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => {}): Promise<object> {
     // Search for a matching certificate
-    const certificates = await SDK.getCertificates({
-      certifiers: [certifierPublicKey],
-      types: {
-        [certificateType]: Object.keys(fieldsToReveal)
-      }
-    })
+    let matchingCertificates
+    if (!newCertificate) {
+      await updateProgress('Looking for matching certificate...')
+      matchingCertificates = await SDK.getCertificates({
+        certifiers: [certifierPublicKey],
+        types: {
+          [certificateType]: Object.keys(fieldsToReveal)
+        }
+      })
+    }
     
     // If no certificate is found, the user needs to request one before revealing particular attributes
     let certificate: Certificate
-    if (!certificates || certificates.length === 0 || newCertificate === true) {
+    if (newCertificate === true || !matchingCertificates || matchingCertificates.length === 0) {
       // Create a new Authrite client for interacting with the SigniCert server
       const client = new AuthriteClient(certifierUrl)
-
-
       await updateProgress('Identifying certifier...')
-
+      
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
       if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey) {
         throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
       }
 
-      // Is confirmCertificate necessary?
-      // Check if the user's identity has been verified
-      const results = await client.createSignedRequest('/checkVerification', {
-        verificationId,
-        certificateFields: fieldsToReveal
-      })
-
-      await updateProgress('Checking verification status...')
-
-      // Check user has completed KYC verification
-      if (results.status !== 'verified' || !results.uhrpURL) {
-        throw new Error('User identity has not verified!')
+      // TODO: Consider appropriate response
+      if (JSON.stringify(Object.keys(fieldsToReveal)) !== JSON.stringify(identifyResponse.certificateTypes[0][1])) {
+        throw new ERR_BAD_REQUEST('Fields to reveal must match the certifier fields for the given certificate type.')
       }
 
-      // Update the fields to include the profile photo UHRP URL
-      fieldsToReveal = {...fieldsToReveal, profilePhoto: results.uhrpURL}
+      // If the attributes have been preVerified through some other process (such as Persona KYC API iFrame in a UI),
+      // Then we should send that data to the backend for confirmation before proceeding
+      if (preVerifiedData) {
+        // Is confirmCertificate necessary?
+        await updateProgress('Checking verification status...')
+        const verificationResponse = await client.createSignedRequest('/checkVerification', {
+          preVerifiedData,
+          certificateFields: fieldsToReveal
+        })
+
+        // Check user has completed KYC verification
+        if (verificationResponse.status !== 'verified') {
+          throw new Error('Attributes have not been verified!')
+        }
+        
+        // The fields returned from the certifier are the fields that have been certified.
+        // Note: these may contain additional data if it is necessary such as when a profile photo is verified and a UHRP url is returned as a field.
+        // Additional fields cannot be added as the kernal does an additional check before signing.
+        // The field data returned from the certifier could potentially be wrong, but it is the certifier who's reputation is at stake.
+        fieldsToReveal = verificationResponse.verifiedAttributes
+      } else {
+        await updateProgress('Submitting attributes for verification...')
+        // Submit attributes to reveal for verification by the certifier
+        const verificationResponse = await client.createSignedRequest('/verifyAttributes', {
+          attributes: fieldsToReveal
+        })
+
+        // TODO: Consider appropriate verification response messages
+        if (verificationResponse.status === 'passed') {
+          if (JSON.stringify(verificationResponse.verifiedAttributes) !== JSON.stringify(fieldsToReveal)) {
+            throw new Error('The verified attributes do not match the fields to reveal.')
+          }
+        } else {
+          throw new Error('Certifier failed to validate attributes!')
+        }
+      }
 
       // Create a new certificate
       certificate = await client.createCertificate({
@@ -98,7 +126,7 @@ export class Signia {
     } else {
       // Use the latest certificate (for now)
       // TODO: Consider best practices for this and removal of certificates
-      certificate = certificates[certificates.length - 1]
+      certificate = matchingCertificates[matchingCertificates.length - 1]
     }
 
     await updateProgress('Creating a verifiable certificate...')
@@ -109,6 +137,9 @@ export class Signia {
       fieldsToReveal: Object.keys(fieldsToReveal),
       verifierPublicIdentityKey: new bsv.PrivateKey('0000000000000000000000000000000000000000000000000000000000000001').publicKey.toString('hex')
     })
+    
+    // TODO: Make sure the verifiableCertificate doesn't contain extra fields such as UserId and isDeleted
+    // Maybe the certificate structure should be recreated as expected similar to how it does it in verifyCert in authriteUtils
 
     // Check if an existing Signia token is found ??
     const lookupResults: Output[] = await this.makeAuthenticatedRequest(
@@ -165,7 +196,7 @@ export class Signia {
       }
     }
 
-    // Build the output with pushdrop.create() and the transaction with createAction()
+    // Build the lockingScript with pushdrop.create() and the transaction with createAction()
     const bitcoinOutputScript = await pushdrop.create({
       fields: [
         Buffer.from(JSON.stringify(verifiableCertificate))
@@ -241,7 +272,7 @@ export class Signia {
    * @returns {object[]}
    */
   async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> {
-    // Lookup identity data based on identity key
+    // Lookup data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
       { 
@@ -327,11 +358,5 @@ interface Certificate {
   revocationOutpoint: string,
   signature: string, // ?
   keyring: object,
-  decryptedFields: SigniaFields
-}
-
-interface SigniaFields {
-  firstName: string,
-  lastName: string,
-  profilePhoto: string
+  decryptedFields:  { [key: string]: string }
 }

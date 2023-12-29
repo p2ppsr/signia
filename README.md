@@ -34,12 +34,12 @@ Links: [API](#api), [Classes](#classes)
 ---
 #### Class: Signia
 
-A system for decentralized identity management
+A system for decentralized identity attribute attestation and lookup
 
 ```ts
 export class Signia {
-    constructor(public config: ConfederacyConfig = defaultConfig) 
-    async publiclyRevealIdentityAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, verificationId = "notVerified", newCertificate?: boolean, updateProgress = async (message) => { }): Promise<object> 
+    constructor(public config = new ConfederacyConfig("https://confederacy.babbage.systems", [1, "signia"], "1", 1000, ["Signia"], undefined, undefined, false, false, "localToSelf")) 
+    async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
     async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
     async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
     async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
@@ -56,7 +56,7 @@ export class Signia {
 Constructs a new Signia instance
 
 ```ts
-constructor(public config: ConfederacyConfig = defaultConfig) 
+constructor(public config = new ConfederacyConfig("https://confederacy.babbage.systems", [1, "signia"], "1", 1000, ["Signia"], undefined, undefined, false, false, "localToSelf")) 
 ```
 
 Argument Details
@@ -67,24 +67,30 @@ Argument Details
 ##### Method discoverByAttributes
 
 Query the lookup service for the given attribute (and optional certifiers) and parseResults
+Query the lookup service for the given attribute (and optional certifiers) and parseResults
 
 ```ts
+async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
 async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
 ```
 
 ##### Method discoverByCertifier
 
 Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
+Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
 
 ```ts
+async discoverByCertifier(certifiers: string[]): Promise<object[]> 
 async discoverByCertifier(certifiers: string[]): Promise<object[]> 
 ```
 
 ##### Method discoverByIdentityKey
 
 Query the lookup service for the given identity key (and optional certifiers) parseResults
+Query the lookup service for the given identity key (and optional certifiers) parseResults
 
 ```ts
+async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
 async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
 ```
 
@@ -94,23 +100,41 @@ Example higher level lookup function
 
 ```ts
 async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
+async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
 ```
 
 Returns
 
 - with identity information
 
-##### Method publiclyRevealIdentityAttributes
+##### Method publiclyRevealAttributes
 
-Publicly reveal identity attributes to the Signia overlay
+Publicly reveal attributes to the Signia overlay.
 
 ```ts
-async publiclyRevealIdentityAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, verificationId = "notVerified", newCertificate?: boolean, updateProgress = async (message) => { }): Promise<object> 
+async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
 ```
 
 Returns
 
-- submission confirmation from the overlay
+A promise that resolves with the results of the submission to the overlay.
+
+Argument Details
+
++ **fieldsToReveal**
+  + The fields to reveal.
++ **certifierUrl**
+  + The URL of the certifier.
++ **certifierPublicKey**
+  + The public key of the certifier.
++ **certificateType**
+  + The type of certificate.
++ **newCertificate**
+  + Indicates if a new certificate should be created. Default is false.
++ **preVerifiedData**
+  + Verification data to send to the certifier if the attributes have been preVerified. Can be undefined.
++ **updateProgress**
+  + A callback function to update progress. Default is an empty asynchronous function.
 
 </details>
 
