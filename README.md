@@ -67,30 +67,24 @@ Argument Details
 ##### Method discoverByAttributes
 
 Query the lookup service for the given attribute (and optional certifiers) and parseResults
-Query the lookup service for the given attribute (and optional certifiers) and parseResults
 
 ```ts
-async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
 async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
 ```
 
 ##### Method discoverByCertifier
 
 Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
-Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
 
 ```ts
-async discoverByCertifier(certifiers: string[]): Promise<object[]> 
 async discoverByCertifier(certifiers: string[]): Promise<object[]> 
 ```
 
 ##### Method discoverByIdentityKey
 
 Query the lookup service for the given identity key (and optional certifiers) parseResults
-Query the lookup service for the given identity key (and optional certifiers) parseResults
 
 ```ts
-async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
 async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
 ```
 
@@ -99,7 +93,6 @@ async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<
 Example higher level lookup function
 
 ```ts
-async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
 async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
 ```
 
