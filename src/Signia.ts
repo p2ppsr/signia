@@ -349,24 +349,7 @@ export class Signia {
       includeEnvelope: true
     })
 
-    const parsedResults: Certificate[] = []
-    for (const entry of entriesFromBasket) {
-      try {
-        // Decode the Signia token from the Bitcoin outputScript
-        const token = await this.parseResults(entry)
-
-        // Push the ProtoMap record to return
-        parsedResults.push({
-          ...entry,
-          ...token
-        })
-      } catch (error) {
-        // Do nothing - Probably a misconfigured token
-        // TODO: Maybe remove invalid token?
-      }
-    }
-
-    return parsedResults
+    return await this.parseResults(entriesFromBasket)
   }
 
   /**
