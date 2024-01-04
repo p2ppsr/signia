@@ -280,15 +280,8 @@ export class Signia {
     if (peer.length !== 66) {
       peer = bsv.PublicKey.fromHex(peer).toCompressed().toString()
     }
-    const revocationKeyID = nodeCrypto.randomBytes(32).toString('base64')
 
-    const revocationScript = await pushdrop.create({
-      fields: [serialNumber],
-      protocolID: [0, 'certificate revocation'],
-      keyID: revocationKeyID
-    })
 
-    // Create certificate to sign
     const certificate: any = {
       type: certificateType,
       subject: peer,
@@ -298,20 +291,7 @@ export class Signia {
       certifier: identityKey
     }
 
-    const revocationTX = await SDK.createAction({
-      outputs: [{
-        satoshis: 1000,
-        script: revocationScript,
-        basket: 'signia peer certificates',
-        customInstructions: JSON.stringify({
-          ...certificate,
-          revocationKeyID
-        })
-      }],
-      description: 'Issue a certificate to a peer'
-    })
-
-    certificate.revocationOutpoint = `${revocationTX.txid}00000000`
+    certificate.revocationOutpoint = `000000000000000000000000000000000000000000000000000000000000000000000000`
 
     const dataToSign = Buffer.from(stringify(certificate))
 
@@ -342,7 +322,12 @@ export class Signia {
       description: 'Create new Signia Token',
       outputs: [{
         satoshis: this.config.tokenAmount,
-        script: bitcoinOutputScript
+        script: bitcoinOutputScript,
+        basket: 'signia',
+        customInstructions: JSON.stringify({ // TODO: parse this instead of storing it redundently
+          ...certificate,
+          fields: fieldsToAttest
+        })
       }]
     })
 
@@ -354,6 +339,86 @@ export class Signia {
       { ...tx, topics: this.config.topics }
     )
   }
+
+  /**
+  * Lists all certifications made to peers.
+  * @public
+  * @returns {Promise<any[]>}
+  */
+  async listCertifiedPeers(): Promise<any[]> {
+    // Get tokens from the signia peers basket
+    const entriesFromBasket = await SDK.getTransactionOutputs({
+      basket: 'signia',
+      spendable: true,
+      includeEnvelope: true
+    })
+
+    const parsedResults: Certificate[] = []
+    for (const entry of entriesFromBasket) {
+      try {
+        // Decode the Protomap token from the Bitcoin outputScript
+        const token = JSON.parse(entry.customInstructions) // TODO: parse this from entry.outputScript instead of relying on cusom instructions
+
+        // Push the ProtoMap record to return
+        parsedResults.push({
+          ...entry,
+          ...token
+        })
+      } catch (error) {
+        // Do nothing - Probably a misconfigured token
+        // TODO: Maybe remove invalid token?
+      }
+    }
+
+    return parsedResults
+  }
+
+  /**
+   * Revokes a peer certification
+   * @public
+   * @param entry - Peer certification to revoke
+   */
+  async revokeCertifiedPeer(entry): Promise<void> {
+    // Create an unlocking script that spends the ProtoMap token
+    const unlockingScript = await pushdrop.redeem({
+      prevTxId: entry.txid,
+      outputIndex: entry.vout,
+      lockingScript: entry.outputScript,
+      outputAmount: entry.amount,
+      protocolID: this.config.protocolID,
+      keyID: this.config.keyID,
+      counterparty: 'anyone'
+    })
+
+    // Create a new transaction with no outputs
+    const tx = await SDK.createAction({
+      description: `Remove peer certification`,
+      inputs: {
+        [entry.txid as string]: {
+          ...entry.envelope,
+          satoshis: entry.amount,
+          outputsToRedeem: [{
+            index: entry.vout,
+            unlockingScript
+          }]
+        }
+      }
+    })
+
+    // Notify Confederacy that the entry is removed from the registry
+    const response = await new Authrite().request(
+      `${this.config.confederacyHost}/submit`,
+      {
+        method: 'POST',
+        body: {
+          ...tx,
+          topics: this.config.topics // TODO: Also notify certificate revocation overlay
+        }
+      }
+    )
+    return await response.json()
+  }
+
 
   /**
    * Example higher level lookup function
@@ -485,7 +550,7 @@ interface Certificate {
   fields: object,
   certifier: string,
   revocationOutpoint: string,
-  signature: string, // ?
+  signature: string,
   keyring: object,
   decryptedFields: { [key: string]: string }
 }

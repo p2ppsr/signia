@@ -136,6 +136,8 @@ export class Signia {
     constructor(public config = new ConfederacyConfig("https://confederacy.babbage.systems", [1, "signia"], "1", 1000, ["Signia"], undefined, undefined, false, false, "localToSelf")) 
     async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
     async certifyPeer(peer: string, fieldsToAttest: Record<string, string>, certificateType: string, updateProgress = async (message) => { }): Promise<object> 
+    async listCertifiedPeers(): Promise<any[]> 
+    async revokeCertifiedPeer(entry): Promise<void> 
     async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
     async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
     async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
@@ -219,6 +221,14 @@ Returns
 
 - with identity information
 
+##### Method listCertifiedPeers
+
+Lists all certifications made to peers.
+
+```ts
+async listCertifiedPeers(): Promise<any[]> 
+```
+
 ##### Method publiclyRevealAttributes
 
 Publicly reveal attributes to the Signia overlay.
@@ -247,6 +257,19 @@ Argument Details
   + Verification data to send to the certifier if the attributes have been preVerified. Can be undefined.
 + **updateProgress**
   + A callback function to update progress. Default is an empty asynchronous function.
+
+##### Method revokeCertifiedPeer
+
+Revokes a peer certification
+
+```ts
+async revokeCertifiedPeer(entry): Promise<void> 
+```
+
+Argument Details
+
++ **entry**
+  + Peer certification to revoke
 
 </details>
 
