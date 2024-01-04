@@ -298,7 +298,7 @@ export class Signia {
     // Compute certificate signature
     const signature = await SDK.createSignature({
       data: dataToSign,
-      protocolID: [2, `authrite certificate signature ${certificateType}`],
+      protocolID: [2, `authrite certificate signature ${Buffer.from(certificateType, 'base64').toString('hex')}`],
       keyID: serialNumber,
       returnType: 'string'
     })
@@ -323,11 +323,7 @@ export class Signia {
       outputs: [{
         satoshis: this.config.tokenAmount,
         script: bitcoinOutputScript,
-        basket: 'signia',
-        customInstructions: JSON.stringify({ // TODO: parse this instead of storing it redundently
-          ...certificate,
-          fields: fieldsToAttest
-        })
+        basket: 'signia'
       }]
     })
 
@@ -356,8 +352,8 @@ export class Signia {
     const parsedResults: Certificate[] = []
     for (const entry of entriesFromBasket) {
       try {
-        // Decode the Protomap token from the Bitcoin outputScript
-        const token = JSON.parse(entry.customInstructions) // TODO: parse this from entry.outputScript instead of relying on cusom instructions
+        // Decode the Signia token from the Bitcoin outputScript
+        const token = await this.parseResults(entry)
 
         // Push the ProtoMap record to return
         parsedResults.push({
