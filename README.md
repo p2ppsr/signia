@@ -135,6 +135,7 @@ A system for decentralized identity attribute attestation and lookup
 export class Signia {
     constructor(public config = new ConfederacyConfig("https://confederacy.babbage.systems", [1, "signia"], "1", 1000, ["Signia"], undefined, undefined, false, false, "localToSelf")) 
     async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
+    async certifyPeer(peer: string, fieldsToAttest: Record<string, string>, certificateType: string, updateProgress = async (message) => { }): Promise<object> 
     async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
     async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
     async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
@@ -158,6 +159,29 @@ Argument Details
 
 + **config**
   + the configuration object required by Confederacy
+
+##### Method certifyPeer
+
+Publicly attest attributes of a peer.
+
+```ts
+async certifyPeer(peer: string, fieldsToAttest: Record<string, string>, certificateType: string, updateProgress = async (message) => { }): Promise<object> 
+```
+
+Returns
+
+A promise that resolves when the attestation has been made.
+
+Argument Details
+
++ **peer**
+  + The public key of the peer to certify.
++ **fieldsToAttest**
+  + The fields to attest about a peer.
++ **certificateType**
+  + The type of certification to make about this peer (based on the fields).
++ **updateProgress**
+  + A callback function to update progress. Default is an empty asynchronous function.
 
 ##### Method discoverByAttributes
 
