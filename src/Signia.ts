@@ -4,13 +4,14 @@ import SDK from '@babbage/sdk'
 import pushdrop from 'pushdrop'
 import bsv from 'babbage-bsv'
 import { Authrite, AuthriteClient } from 'authrite-js'
-import { decryptCertificateFields } from 'authrite-utils'
+import { decryptCertificateFields, verifyCertificateSignature } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
 import { ERR_BAD_REQUEST } from 'cwi-base'
 import stringify from 'json-stable-stringify'
 import * as CWICrypto from 'cwi-crypto'
 import nodeCrypto from 'crypto'
+import { getPaymentPrivateKey, getPaymentAddress } from 'sendover'
 
 /**
  * A system for decentralized identity attribute attestation and lookup
@@ -266,13 +267,33 @@ export class Signia {
         'Uint8Array'
       )
 
-      // Encrypt key used to conceal/reveal field
-      const encryptedFieldRevelationKeyForAnyone = await SDK.encrypt({
-        protocolID: [2, 'authrite certificate field encryption'],
-        keyID,
-        counterparty: new bsv.PrivateKey('0000000000000000000000000000000000000000000000000000000000000001').publicKey.toString('hex'), // anyone (1 x G)
-        plaintext: new Uint8Array(Buffer.from(fieldRevelationKey, 'base64'))
+      // 1. Derive their private key:
+      const derivedPrivateKeyringKey = getPaymentPrivateKey({
+        senderPublicKey: peer,
+        recipientPrivateKey: '0000000000000000000000000000000000000000000000000000000000000001',
+        invoiceNumber: `2-authrite certificate field encryption-${serialNumber} ${fieldName}`,
+        returnType: 'babbage-bsv'
       })
+      // 2. Derive the sender’s public key:
+      const derivedPublicKeyringKey = getPaymentAddress({
+        senderPrivateKey: '0000000000000000000000000000000000000000000000000000000000000001',
+        recipientPublicKey: peer,
+        invoiceNumber: `2-authrite certificate field encryption-${serialNumber} ${fieldName}`,
+        returnType: 'babbage-bsv'
+      })
+      // 3. Use the shared secret between the keys from step 1 and step 2 for decryption.
+      const sharedSecret = (derivedPublicKeyringKey.point.mul(derivedPrivateKeyringKey).toBuffer().slice(1)).toString('hex')
+
+      const encryptionKey = await global.crypto.subtle.importKey(
+        'raw',
+        Uint8Array.from(Buffer.from(sharedSecret, 'hex')),
+        {
+          name: 'AES-GCM'
+        },
+        true,
+        ['encrypt']
+      )
+      const encryptedFieldRevelationKeyForAnyone = await CWICrypto.encrypt(new Uint8Array(Buffer.from(fieldRevelationKey, 'base64')), encryptionKey, 'Uint8Array')
       fields[fieldName] = Buffer.from(concealedField).toString('base64')
       keyring[fieldName] = Buffer.from(encryptedFieldRevelationKeyForAnyone).toString('base64')
     }
@@ -281,17 +302,15 @@ export class Signia {
       peer = bsv.PublicKey.fromHex(peer).toCompressed().toString()
     }
 
-
     const certificate: any = {
       type: certificateType,
       subject: peer,
       validationKey,
       serialNumber,
       fields,
-      certifier: identityKey
+      certifier: identityKey,
+      revocationOutpoint: `000000000000000000000000000000000000000000000000000000000000000000000000`
     }
-
-    certificate.revocationOutpoint = `000000000000000000000000000000000000000000000000000000000000000000000000`
 
     const dataToSign = Buffer.from(stringify(certificate))
 
@@ -300,9 +319,9 @@ export class Signia {
       data: dataToSign,
       protocolID: [2, `authrite certificate signature ${Buffer.from(certificateType, 'base64').toString('hex')}`],
       keyID: serialNumber,
-      returnType: 'string'
+      counterparty: new bsv.PrivateKey(Buffer.from(validationKey, 'base64').toString('hex')).publicKey.toString()
     })
-    certificate.signature = signature.toString('hex')
+    certificate.signature = Buffer.from(signature).toString('hex')
     certificate.keyring = keyring
     await updateProgress('Creating a verifiable certificate...')
 
@@ -348,6 +367,52 @@ export class Signia {
       spendable: true,
       includeEnvelope: true
     })
+
+    for (let i = 0; i < entriesFromBasket.length; i++) {
+      try {
+        const o = entriesFromBasket[i]
+
+
+        const result = pushdrop.decode({
+          script: o.outputScript,
+          fieldFormat: 'buffer'
+        })
+
+        const certificate = JSON.parse(result.fields[0])
+
+
+        // Ensure result.lockingPublicKey came from result.fields[0]
+        // Either the certifier or the subject must control the Signia token.
+        const expectedSubject = getPaymentAddress({
+          senderPrivateKey: '0000000000000000000000000000000000000000000000000000000000000001',
+          recipientPublicKey: certificate.subject,
+          invoiceNumber: '1-signia-1',
+          returnType: 'publicKey'
+        })
+        const expectedCertifier = getPaymentAddress({
+          senderPrivateKey: '0000000000000000000000000000000000000000000000000000000000000001',
+          recipientPublicKey: certificate.certifier,
+          invoiceNumber: '1-signia-1',
+          returnType: 'publicKey'
+        })
+
+        // Make sure keys match
+        if (expectedSubject !== result.lockingPublicKey && expectedCertifier !== result.lockingPublicKey) throw 'bad'
+
+        // Use ECDSA to verify signature
+        const hasValidSignature = bsv.crypto.ECDSA.verify(
+          bsv.crypto.Hash.sha256(Buffer.concat(result.fields)),
+          bsv.crypto.Signature.fromString(result.signature),
+          bsv.PublicKey.fromString(result.lockingPublicKey)
+        )
+        if (!hasValidSignature) throw 'bad2'
+
+        // Ensure validity of the certificate signature
+        if (!verifyCertificateSignature(certificate)) throw 'bad3'
+      } catch (e) {
+        console.error(i, e)
+      }
+    }
 
     return await this.parseResults(entriesFromBasket)
   }
@@ -490,12 +555,16 @@ export class Signia {
           script: output.outputScript,
           fieldFormat: 'buffer'
         })
+        console.log(result)
 
         // Parse out the certificate and relevant data
         const certificate = JSON.parse((result as Certificate).fields[0].toString())
+        console.log(certificate)
         const decryptedFields = await decryptCertificateFields(certificate, certificate.keyring, '0000000000000000000000000000000000000000000000000000000000000001')
+        console.log(decryptedFields)
         parsedResults.push({ ...certificate, decryptedFields })
       } catch (error) {
+        console.error(error)
         // do nothing
       }
     }

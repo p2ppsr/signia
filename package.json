@@ -50,6 +50,7 @@
     "cwi-crypto": "^0.1.8",
     "dotenv": "^8.2.0",
     "json-stable-stringify": "^1.1.0",
-    "pushdrop": "^0.1.30"
+    "pushdrop": "^0.1.30",
+    "sendover": "^1.2.3"
   }
 }
