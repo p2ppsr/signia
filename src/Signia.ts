@@ -74,17 +74,12 @@ export class Signia {
 
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
-      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey) {
-        throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey.')
+      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey || identifyResponse.certificateTypes[0][0] !== certificateType) {
+        throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey and certificateType.')
       }
 
-      // TODO: Consider appropriate response
-      if (JSON.stringify(Object.keys(fieldsToReveal)) !== JSON.stringify(identifyResponse.certificateTypes[0][1])) {
-        throw new ERR_BAD_REQUEST('Fields to reveal must match the certifier fields for the given certificate type.')
-      }
-
-      // If the attributes have been preVerified through some other process (such as Persona KYC API iFrame in a UI),
-      // Then we should send that data to the backend for confirmation before proceeding
+      // If pre-verification has been done through some other process (such as Persona KYC API iFrame in a UI),
+      // Then we should send that data to the backend for validation before proceeding
       if (preVerifiedData) {
         // Is confirmCertificate necessary?
         await updateProgress('Checking verification status...')
@@ -93,7 +88,7 @@ export class Signia {
           certificateFields: fieldsToReveal
         })
 
-        // Check user has completed KYC verification
+        // Check user has completed verification
         if (verificationResponse.status !== 'verified') {
           throw new Error('Attributes have not been verified!')
         }
@@ -110,13 +105,9 @@ export class Signia {
           attributes: fieldsToReveal
         })
 
-        // TODO: Consider appropriate verification response messages
-        if (verificationResponse.status === 'passed') {
-          if (JSON.stringify(verificationResponse.verifiedAttributes) !== JSON.stringify(fieldsToReveal)) {
-            throw new Error('The verified attributes do not match the fields to reveal.')
-          }
-        } else {
-          throw new Error('Certifier failed to validate attributes!')
+        // Check user has completed verification
+        if (verificationResponse.status !== 'verified') {
+          throw new Error('Attributes have not been verified!')
         }
       }
 
