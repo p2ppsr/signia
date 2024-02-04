@@ -1,6 +1,6 @@
 {
   "name": "babbage-signia",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "description": "Decentralized Identity Management",
   "main": "./out/src/index.js",
   "types": "./out/src/index.d.ts",
