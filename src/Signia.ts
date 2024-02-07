@@ -7,7 +7,7 @@ import { Authrite, AuthriteClient } from 'authrite-js'
 import { decryptCertificateFields, verifyCertificateSignature } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
-import { ERR_BAD_REQUEST } from 'cwi-base'
+import { CwiError, ERR_BAD_REQUEST } from 'cwi-base'
 import stringify from 'json-stable-stringify'
 import * as CWICrypto from 'cwi-crypto'
 import nodeCrypto from 'crypto'
@@ -457,10 +457,16 @@ export class Signia {
 
   /**
    * Example higher level lookup function
-   * @param identityKey 
+   * @param {string} identityKey 
    * @returns {object} - with identity information
    */
   async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> {
+    // Validate params
+    if (!identityKey) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the identity key to query by!')
+      throw e
+    }
+
     const [certificate]: Certificate[] = await this.discoverByIdentityKey(identityKey, certifiers) as Certificate[]
     if (!certificate || !certificate.decryptedFields || !certificate.decryptedFields.firstName || !certificate.decryptedFields.lastName) {
       return {}
@@ -475,11 +481,21 @@ export class Signia {
   /**
    * Query the lookup service for the given attribute (and optional certifiers) and parseResults
    * @public 
-   * @param attributes 
-   * @param certifiers
-   * @returns {object[]}
+   * @param {object} attributes 
+   * @param {string[]} certifiers
+   * @returns {Promise<object[]>}
    */
   async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> {
+    // Validate params
+    if (!attributes || Object.keys(attributes).length === 0) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the attributes to query by!')
+      throw e
+    }
+    if (!certifiers || certifiers.length === 0) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the certifiers you trust!')
+      throw e
+    }
+
     // Request data from the Signia lookup service
     const results = await this.makeAuthenticatedRequest(
       'lookup',
@@ -496,11 +512,21 @@ export class Signia {
   /**
    * Query the lookup service for the given identity key (and optional certifiers) parseResults
    * @public
-   * @param identityKey 
-   * @param certifiers 
-   * @returns {object[]}
+   * @param {string} identityKey 
+   * @param {string[]} certifiers 
+   * @returns {Promise<object[]>}
    */
   async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> {
+    // Validate params
+    if (!identityKey) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the identity key to query by!')
+      throw e
+    }
+    if (!certifiers || certifiers.length === 0) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the certifiers you trust!')
+      throw e
+    }
+
     // Lookup data based on identity key
     const results = await this.makeAuthenticatedRequest(
       'lookup',
@@ -517,10 +543,16 @@ export class Signia {
   /**
    * Query the lookup service for the given certifiers, returning all results for the certifiers parseResults
    * @public
-   * @param certifiers 
-   * @returns {object[]}
+   * @param {string[]} certifiers 
+   * @returns {Promise<object[]>}
    */
   async discoverByCertifier(certifiers: string[]): Promise<object[]> {
+    // Validate params
+    if (!certifiers || certifiers.length === 0) {
+      const e = new CwiError('ERR_MISSING_PARAMETER', 'Please provide the certifiers you trust!')
+      throw e
+    }
+
     const results: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
@@ -534,9 +566,10 @@ export class Signia {
   }
 
   /**
-   * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
-   * @returns {object}
-   */
+  * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
+  * @param {Output[]} outputs
+  * @returns {Promise<object[]>}
+  */
   private async parseResults(outputs: Output[]): Promise<object[]> {
     const parsedResults: object[] = []
     for (const output of outputs) {
