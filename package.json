@@ -42,15 +42,15 @@
   },
   "dependencies": {
     "@babbage/sdk": "^0.4.44",
-    "authrite-js": "^0.3.38",
-    "authrite-utils": "^0.2.33",
+    "authrite-js": "^0.3.41",
+    "authrite-utils": "^0.2.35",
     "babbage-bsv": "^0.2.4",
     "confederacy-base": "^0.1.2",
-    "cwi-base": "^0.3.119",
+    "cwi-base": "^0.3.122",
     "cwi-crypto": "^0.1.8",
     "dotenv": "^8.2.0",
     "json-stable-stringify": "^1.1.0",
     "pushdrop": "^0.1.37",
-    "sendover": "^1.2.19"
+    "sendover": "^1.2.20"
   }
 }
