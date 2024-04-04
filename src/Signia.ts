@@ -74,7 +74,7 @@ export class Signia {
 
       // Check if the server is who we think it is
       const identifyResponse = await client.createSignedRequest('/identify', {})
-      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey || !identifyResponse.certificateTypes.some(([type]) => type === certificateType)) {
+      if (identifyResponse.status !== 'success' || identifyResponse.certifierPublicKey !== certifierPublicKey || !identifyResponse.certificateTypes[certificateType]) {
         throw new ERR_BAD_REQUEST('Unexpected Identify Certifier Response. Check certifierPublicKey and certificateType.')
       }
 
