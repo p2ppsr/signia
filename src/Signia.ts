@@ -142,6 +142,7 @@ export class Signia {
       {
         provider: 'Signia',
         query: {
+          certificateTypes: [certificateType],
           identityKey: certificate.subject,
           certifiers: [certifierPublicKey]
         }
