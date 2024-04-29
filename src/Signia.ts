@@ -580,13 +580,10 @@ export class Signia {
           script: output.outputScript,
           fieldFormat: 'buffer'
         })
-        console.log(result)
 
         // Parse out the certificate and relevant data
         const certificate = JSON.parse((result as Certificate).fields[0].toString())
-        console.log(certificate)
         const decryptedFields = await decryptCertificateFields(certificate, certificate.keyring, '0000000000000000000000000000000000000000000000000000000000000001')
-        console.log(decryptedFields)
         parsedResults.push({ ...certificate, decryptedFields })
       } catch (error) {
         console.error(error)
