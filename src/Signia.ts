@@ -405,22 +405,26 @@ export class Signia {
         console.error(i, e)
       }
     }
-
-    return await this.parseResults(entriesFromBasket)
+    // TODO: This custom parser can probably be safely integrated into the previous function.
+    return await this.parseResultsWithToken(entriesFromBasket)
   }
 
   /**
-   * Revokes a peer certification
-   * @public
-   * @param entry - Peer certification to revoke
+   * Revokes a Signia certification token
+   * @param certToken certification token to be revoked
+   * @param description custom description for the createAction call
    */
-  async revokeCertifiedPeer(entry): Promise<void> {
-    // Create an unlocking script that spends the ProtoMap token
+  async revokeCertification(certToken, description = 'Revoke Signia certification'): Promise<void> {
+    if (!certToken.txid || !certToken.envelope || !certToken.envelope.rawTx || typeof certToken.vout === 'undefined') {
+      throw new Error('Invalid Signia token!')
+    }
+
+    // Create an unlocking script that spends the Signia token
     const unlockingScript = await pushdrop.redeem({
-      prevTxId: entry.txid,
-      outputIndex: entry.vout,
-      lockingScript: entry.outputScript,
-      outputAmount: entry.amount,
+      prevTxId: certToken.txid,
+      outputIndex: certToken.vout,
+      lockingScript: certToken.outputScript,
+      outputAmount: certToken.amount,
       protocolID: this.config.protocolID,
       keyID: this.config.keyID,
       counterparty: 'anyone'
@@ -428,13 +432,13 @@ export class Signia {
 
     // Create a new transaction with no outputs
     const tx = await SDK.createAction({
-      description: `Remove peer certification`,
+      description,
       inputs: {
-        [entry.txid as string]: {
-          ...entry.envelope,
-          satoshis: entry.amount,
+        [certToken.txid as string]: {
+          ...certToken.envelope,
+          satoshis: certToken.amount,
           outputsToRedeem: [{
-            index: entry.vout,
+            index: certToken.vout,
             unlockingScript
           }]
         }
@@ -563,6 +567,34 @@ export class Signia {
     )
     // Parse out the relevant data
     const parsedResults = await this.parseResults(results)
+    return parsedResults
+  }
+
+  // TODO: Consolidate parse functions in the future for simplicity!
+  /**
+  * Internal func: Parse the returned UTXOs Decrypt and verify the certificates and signatures Return the set of identity keys, certificates and decrypted certificate fields
+  * @param {Output[]} outputs
+  * @returns {Promise<object[]>}
+  */
+  private async parseResultsWithToken(outputs: Output[]): Promise<object[]> {
+    const parsedResults: object[] = []
+    for (const output of outputs) {
+      try {
+        // Decode the Signia token fields from the Bitcoin outputScript
+        const result = pushdrop.decode({
+          script: output.outputScript,
+          fieldFormat: 'buffer'
+        })
+
+        // Parse out the certificate and relevant data
+        const certificate = JSON.parse((result as Certificate).fields[0].toString())
+        const decryptedFields = await decryptCertificateFields(certificate, certificate.keyring, '0000000000000000000000000000000000000000000000000000000000000001')
+        parsedResults.push({ ...certificate, decryptedFields, token: output })
+      } catch (error) {
+        console.error(error)
+        // do nothing
+      }
+    }
     return parsedResults
   }
 
