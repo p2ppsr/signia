@@ -137,7 +137,7 @@ export class Signia {
     async publiclyRevealAttributes(fieldsToReveal: object, certifierUrl: string, certifierPublicKey: string, certificateType: string, newCertificate = false, preVerifiedData: object, updateProgress = async (message) => { }): Promise<object> 
     async certifyPeer(peer: string, fieldsToAttest: Record<string, string>, certificateType: string, updateProgress = async (message) => { }): Promise<object> 
     async listCertifiedPeers(): Promise<any[]> 
-    async revokeCertifiedPeer(entry): Promise<void> 
+    async revokeCertification(certToken, description = "Revoke Signia certification"): Promise<void> 
     async getNameFromKey(identityKey: string, certifiers: string[]): Promise<object> 
     async discoverByAttributes(attributes: object, certifiers: string[]): Promise<object[]> 
     async discoverByIdentityKey(identityKey: string, certifiers: string[]): Promise<object[]> 
@@ -258,18 +258,20 @@ Argument Details
 + **updateProgress**
   + A callback function to update progress. Default is an empty asynchronous function.
 
-##### Method revokeCertifiedPeer
+##### Method revokeCertification
 
-Revokes a peer certification
+Revokes a Signia certification token
 
 ```ts
-async revokeCertifiedPeer(entry): Promise<void> 
+async revokeCertification(certToken, description = "Revoke Signia certification"): Promise<void> 
 ```
 
 Argument Details
 
-+ **entry**
-  + Peer certification to revoke
++ **certToken**
+  + certification token to be revoked
++ **description**
+  + custom description for the createAction call
 
 </details>
 
