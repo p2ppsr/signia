@@ -3,7 +3,7 @@
 import SDK from '@babbage/sdk'
 import pushdrop from 'pushdrop'
 import bsv from 'babbage-bsv'
-import { Authrite, AuthriteClient } from 'authrite-js'
+import { AuthriteClient } from 'authrite-js'
 import { decryptCertificateFields, verifyCertificateSignature } from 'authrite-utils'
 import { ConfederacyConfig } from './utils/ConfederacyConfig'
 import { Output } from 'confederacy-base'
@@ -12,24 +12,25 @@ import stringify from 'json-stable-stringify'
 import * as CWICrypto from 'cwi-crypto'
 import nodeCrypto from 'crypto'
 import { getPaymentPrivateKey, getPaymentAddress } from 'sendover'
+import { toBEEFfromEnvelope } from '@babbage/sdk-ts'
 
 /**
  * A system for decentralized identity attribute attestation and lookup
  * @public
  */
 export class Signia {
-  private authrite: AuthriteClient
+  // private authrite: AuthriteClient
   /**
    * Constructs a new Signia instance
    * @param {ConfederacyConfig} config - the configuration object required by Confederacy
    */
   constructor(
     public config = new ConfederacyConfig(
-      'https://confederacy.babbage.systems',
+      'https://overlay.babbage.systems',
       [1, 'signia'],
       '1',
       1000,
-      ['Signia'],
+      ['tm_signia'],
       undefined,
       undefined,
       false,
@@ -37,7 +38,7 @@ export class Signia {
       'localToSelf'
     )
   ) {
-    this.authrite = new Authrite(this.config.authriteConfig)
+    // this.authrite = new Authrite(this.config.authriteConfig)
   }
 
   /**
@@ -140,7 +141,7 @@ export class Signia {
     const lookupResults: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
-        provider: 'Signia',
+        service: 'ls_signia',
         query: {
           certificateTypes: [certificateType],
           identityKey: certificate.subject,
@@ -340,11 +341,22 @@ export class Signia {
 
     await updateProgress('Processing submission...')
 
-    // Register the transaction on the overlay using Authrite
-    return await this.makeAuthenticatedRequest(
-      'submit',
-      { ...tx, topics: this.config.topics }
-    )
+    const beef = toBEEFfromEnvelope({
+      rawTx: tx.rawTx,
+      inputs: tx.inputs,
+      txid: tx.txid
+    }).beef
+
+    // Register the transaction on the overlay
+    const result = await fetch(`${this.config.confederacyHost}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Topics': JSON.stringify(['tm_signia'])
+      },
+      body: new Uint8Array(beef)
+    })
+    return await result.json()
   }
 
   /**
@@ -371,7 +383,6 @@ export class Signia {
         })
 
         const certificate = JSON.parse(result.fields[0])
-
 
         // Ensure result.lockingPublicKey came from result.fields[0]
         // Either the certifier or the subject must control the Signia token.
@@ -446,14 +457,14 @@ export class Signia {
     })
 
     // Notify Confederacy that the entry is removed from the registry
-    const response = await new Authrite().request(
+    const response = await fetch(
       `${this.config.confederacyHost}/submit`,
       {
         method: 'POST',
-        body: {
+        body: JSON.stringify({
           ...tx,
           topics: this.config.topics // TODO: Also notify certificate revocation overlay
-        }
+        })
       }
     )
     return await response.json()
@@ -505,7 +516,7 @@ export class Signia {
     const results = await this.makeAuthenticatedRequest(
       'lookup',
       {
-        provider: 'Signia',
+        service: 'ls_signia',
         query: { attributes, certifiers }
       }
     )
@@ -536,7 +547,7 @@ export class Signia {
     const results = await this.makeAuthenticatedRequest(
       'lookup',
       {
-        provider: 'Signia',
+        service: 'ls_signia',
         query: { identityKey, certifiers }
       }
     )
@@ -561,7 +572,7 @@ export class Signia {
     const results: Output[] = await this.makeAuthenticatedRequest(
       'lookup',
       {
-        provider: 'Signia',
+        service: 'ls_signia',
         query: { certifiers }
       }
     )
@@ -631,13 +642,13 @@ export class Signia {
    * @returns {object} - result of HTTP request
    */
   private async makeAuthenticatedRequest(route: string, body: object): Promise<Output[]> {
-    // Make a post request over Authrite
-    const result = await this.authrite.request(`${this.config.confederacyHost}/${route}`, {
+    // NOTE: NOT AUTHENTICATED REQUEST ANYMORE!
+    const result = await fetch(`${this.config.confederacyHost}/${route}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body
+      body: JSON.stringify(body)
     })
     return await result.json()
   }
